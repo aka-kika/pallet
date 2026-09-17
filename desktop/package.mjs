@@ -1,0 +1,11 @@
+import path from 'node:path';import fs from 'node:fs';import {fileURLToPath,pathToFileURL} from 'node:url';import {createRequire} from 'node:module';
+const root=path.dirname(fileURLToPath(import.meta.url));
+if(process.platform!=='darwin')throw new Error('Build the Mac application on your Mac.');
+const require=createRequire(path.join(root,'runtime/package.json'));const {packager}=await import(pathToFileURL(require.resolve('@electron/packager')).href);
+const staging=path.join(root,'staging');fs.rmSync(staging,{recursive:true,force:true});fs.mkdirSync(staging,{recursive:true});
+for(const file of ['main.cjs','preload.cjs','server.cjs','store.cjs','trayTemplate.png','trayTemplate@2x.png','icon.icns'])if(fs.existsSync(path.join(root,file)))fs.copyFileSync(path.join(root,file),path.join(staging,file));
+fs.cpSync(path.join(root,'build'),path.join(staging,'build'),{recursive:true});fs.writeFileSync(path.join(staging,'package.json'),JSON.stringify({name:'pallet',productName:'Pallet',version:'1.0.0',main:'main.cjs',private:true}));
+const icon=path.join(staging,'icon.icns');
+const helper=path.join(root,'suggest-name');
+const apps=await packager({dir:staging,name:'Pallet',platform:'darwin',arch:process.arch,electronVersion:'44.4.1',appBundleId:'local.palette.capture',appCategoryType:'public.app-category.graphics-design',out:path.join(root,'release'),overwrite:true,asar:true,prune:true,icon:fs.existsSync(icon)?icon:undefined,extraResource:fs.existsSync(helper)?[helper]:[]});
+console.log('Built '+apps.join(', '));fs.rmSync(staging,{recursive:true,force:true});
