@@ -31,7 +31,7 @@ Pallet is a Mac menu-bar app for collecting color palettes from images. Drop a p
 
 The main window is the selected palette on top and your cards below. Click a hex chip to copy it. Space shuffles. L locks the current background.
 
-<img src="docs/screenshots/01-collection.png" alt="The Pallet collection window with large swatches, palette cards, and header actions" width="720">
+<img src="docs/screenshots/04-collection-cards.png" alt="Pallet collection grid of color cards with Orchid Mint and Signal Orange selected" width="720">
 
 ## Add an image
 
