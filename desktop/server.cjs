@@ -20,7 +20,6 @@ async function startServer({directory,ui,service,token,port=45487,onChange=()=>{
     const chunks=[];let length=0;for await(const chunk of req){length+=chunk.length;if(length>16*1024*1024)return json(413,{error:'Request too large'});chunks.push(chunk);}
     const body=Buffer.concat(chunks).toString('utf8');
     if(url.pathname==='/api/palettes'&&req.method==='PUT'){let p;try{p=JSON.parse(body);}catch{return json(400,{error:'Invalid JSON'});}if(!service.validPalette(p))return json(400,{error:'Invalid palette'});store.put(p);onChange();return json(200,{ok:true});}
-    if(url.pathname==='/api/provider'&&req.method==='POST'){const response=await service.providerRequest(new Request(url,{method:'POST',headers:{'Content-Type':'application/json','Origin':origin},body}));res.writeHead(response.status,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(await response.text());}
     return json(404,{error:'Unknown endpoint'});
    }
    if(req.method!=='GET')return json(405,{error:'Method not allowed'});

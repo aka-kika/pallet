@@ -37,23 +37,8 @@ yarn-error.log*
 # typescript
 next-env.d.ts
 /dist/
-/.wrangler/
-# Checkout-local execution profile and tool state; never publish them.
-/.sites-runtime/
-/.agents/
-/.codex/
-/.openai/
-/.vinext/
-/.wrangler/
-/.project-cleanup-backups/
-/outputs/
-/work/
 *.tsbuildinfo
 /desktop/build/
 /desktop/staging/
 /desktop/release/
 /desktop/runtime/node_modules/
-/HANDOFF.md
-/PALETTE.md
-/SOURCE-REVISION.txt
-/main.cjs
