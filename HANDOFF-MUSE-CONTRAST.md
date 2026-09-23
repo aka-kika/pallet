@@ -50,4 +50,20 @@ Reminder: branch `muse/contrast-on-shuffle` only, `lib/palettes.ts` plus the che
 
 ## Notes from Muse
 
-(write here)
+Done 2026-09-23 on branch `muse/contrast-on-shuffle`, no push.
+
+What changed and why:
+- `lib/palettes.ts`: added a `legible()` helper that pushes a foreground color with the existing `readable()`/`contrast()` until it reaches the target ratio on every surface it can sit on (`background`, `surface`, `raised`). It returns the color unchanged when it already passes, so palettes that read well keep their exact colors.
+- `theme()`: `text`, `muted`, `highlight-ink`, `link`, `success`, `warning`, `danger` are now fitted against all three surfaces (were checked against `background` only); `focus` against all three at 3:1; `on-accent`/`on-highlight`/`on-selection` pinned to their fills (were already passing, no visible change).
+- `withLockedBackground()`: same fitting against the locked surfaces; also refits `success`/`warning`/`danger` (previously carried over from the unlocked theme) and rebuilds `on-selection` from the locked text.
+- Look preserved: only 17.3% of theme tokens moved, only where a pair failed; worst single move was Signal Orange dark `link` (#FC6130 -> #FC9879, needed 4.5:1 on the brown surface).
+- New `scripts/contrast-check.mjs`: checks all 20 seeds x every main color x light/soft-dark x lock off/on; text colors at 4.5:1 vs background/surface/raised, focus at 3:1, on-* vs their fills.
+
+Check script before (exit 1, 1475 failures, sample):
+- Storm Cloud dark: `highlight-ink on raised 3.83:1`, `link on raised 3.60:1`
+- Signal Orange dark: `link on raised 3.36:1`, `danger on raised 4.35:1`, `muted on raised 4.43:1` (lock on)
+- Zero `on-accent`/`on-highlight`/`on-selection` failures before or after.
+
+Check script after: `node scripts/contrast-check.mjs` exit 0, `PASS: no contrast failures`.
+
+Not done (blocked): the app at http://localhost:5173 is not running (connection refused on 5173 and 3000, no listener in `lsof`, and I must not start a server myself). So the 20-shuffle eye check in light/soft-dark and the 3 screenshots in `docs/screenshots/contrast-fix/` still need the Lead: restart `pnpm dev`, shuffle, screenshots. The script already covers every palette x main x mode x lock exhaustively, so the eye check is the only remaining step.
