@@ -29,7 +29,7 @@ Where to look:
 
 Write a small Node script (no new dependencies) that:
 
-- loads the seed palettes from `lib/palettes.ts` (bundle it with the esbuild already in `node_modules`, or port the few helper functions),
+- imports `lib/palettes.ts` directly (`const m = await import('../lib/palettes.ts')`; Node 22 on this Mac already loads it, checked: 20 seeds, `theme` works),
 - for every seed palette, every main color (rotate through all of them, the way the left and right arrow keys do), in light and in dark, and with the background lock both off and on (lock set to that theme's background),
 - checks every text and surface pair above and prints each failure as: palette, main color, mode, pair, ratio,
 - exits with code 1 if anything fails.
