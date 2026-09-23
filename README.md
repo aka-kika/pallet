@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/icon.png" width="128" height="128" alt="Pallet app icon: three rounded color cards on a dark plate">
+  <img src="docs/icon.png" width="128" height="128" alt="Pallet app icon: three color cards, pale, citron, and slate, fanned on a dark slate plate">
 </p>
 
 # Pallet
@@ -9,7 +9,7 @@
 [![Electron](https://img.shields.io/badge/Electron-44-47848F?style=flat-square&logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![data](https://img.shields.io/badge/data-on%20this%20device-367749?style=flat-square)](docs/mac.md)
 [![build](https://img.shields.io/badge/build-unsigned-8D641D?style=flat-square)](docs/mac.md)
-[![version](https://img.shields.io/badge/version-1.0.0-3B82F6?style=flat-square)](https://github.com/aka-kika/pallet)
+[![version](https://img.shields.io/badge/version-1.1.1-3B82F6?style=flat-square)](https://github.com/aka-kika/pallet/releases/latest)
 [![license](https://img.shields.io/badge/license-MIT-111318?style=flat-square)](LICENSE)
 
 Pallet is a Mac menu-bar app for collecting color palettes from images. Drop a picture, extract colors on this device, and copy light and soft-dark CSS. Nothing is uploaded.
@@ -26,6 +26,8 @@ Pallet is a Mac menu-bar app for collecting color palettes from images. Drop a p
 - Copy one hex, or copy light and dark CSS.
 - Lock the background while you shuffle palettes.
 - Favorites, delete with confirm, and a global shortcut you can record.
+- Readable text on every palette, checked by `scripts/contrast-check.mjs`.
+- Show Pallet in the Dock and menu bar, the Dock only, or the menu bar only.
 
 ## Collection
 
@@ -47,29 +49,32 @@ Name the palette, set the main color, remove extras with the corner X, then add 
 
 ## Install
 
-See **[docs/mac.md](docs/mac.md)**. You need Node.js 24 to build the unsigned app once. After that, Pallet.app runs without Node.
+Latest release: **[1.1.1](https://github.com/aka-kika/pallet/releases/latest)**. What changed: [CHANGELOG.md](CHANGELOG.md).
+
+Build it yourself with Node.js 24. See **[docs/mac.md](docs/mac.md)**, or double-click **Setup Mac.command**. After that, Pallet.app runs without Node.
 
 ```sh
-npm ci --prefix desktop/runtime
+npx --yes pnpm@11.25.0 install --frozen-lockfile
 node desktop/build.mjs
+npm ci --prefix desktop/runtime
 node desktop/package.mjs
 ```
 
-Web preview while developing:
+Browser preview while developing (palettes saved there last until the server restarts):
 
 ```sh
-pnpm install --frozen-lockfile
 pnpm run dev
 ```
 
 ## Docs
 
-- [Mac build and capture](docs/mac.md)
+- [Mac build, capture, and settings](docs/mac.md)
 - [Desktop implementation](desktop/README.md)
+- [Changelog](CHANGELOG.md)
 
 ## Release
 
-Unsigned local builds only. Not notarized. Data is `~/Library/Application Support/Palette/`.
+Releases are tagged on GitHub (`v1.1.1` is the latest). Builds are unsigned and not notarized: Control-click Pallet.app, then Open, the first time. Data lives in `~/Library/Application Support/Palette/`.
 
 ## Contributing
 

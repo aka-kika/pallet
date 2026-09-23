@@ -10,8 +10,9 @@ The build is unsigned and not notarized.
 2. From the repo root, double-click **Setup Mac.command**, or run:
 
 ```sh
-npm ci --prefix desktop/runtime
+npx --yes pnpm@11.25.0 install --frozen-lockfile
 node desktop/build.mjs
+npm ci --prefix desktop/runtime
 node desktop/package.mjs
 ```
 
@@ -26,14 +27,23 @@ Data lives in `~/Library/Application Support/Palette/`. The local server binds t
 - Drop-zone sizes: Mini, Miny, Mo.
 - Right-click the icon for Open Collection, Settings, and Quit.
 
+## Settings
+
+- **App:** appearance, collection layout (cards or list), import on drop, hide the keyboard guide, and the background lock.
+- **Menu bar:** drop-zone size, **Show Pallet in** (Dock and menu bar, Dock only, or Menu bar only), copy CSS on Esc, and the global shortcut. The shortcut opens the drop zone in every mode.
+- **About:** the app icon and links to X, GitHub, and the website.
+
 PNG, JPG, WebP, GIF, and AVIF, up to 20 MB. Colors are sampled locally. Images are not stored.
 
 ## Rebuild after editing source
 
 ```sh
-pnpm install --frozen-lockfile
+npx --yes pnpm@11.25.0 install --frozen-lockfile
 node desktop/build.mjs
 node --test desktop/server.test.cjs
+node scripts/contrast-check.mjs
 npm ci --prefix desktop/runtime
 node desktop/package.mjs
 ```
+
+`scripts/contrast-check.mjs` checks every palette, main color, mode, and background lock for readable text. It must print `PASS`.

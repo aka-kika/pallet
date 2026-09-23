@@ -12,6 +12,8 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 node -e 'if (Number(process.versions.node.split(".")[0]) < 24) { console.error("Install Node.js 24 LTS or newer first."); process.exit(1); }'
+npx --yes pnpm@11.25.0 install --frozen-lockfile
+node desktop/build.mjs
 npm ci --prefix desktop/runtime
 node desktop/package.mjs
 open desktop/release
