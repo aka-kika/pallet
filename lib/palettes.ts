@@ -29,6 +29,10 @@ export const luminance = (h:string) => rgb(h).map(n=>{const s=n/255;return s<=.0
 export const contrast = (a:string,b:string) => (Math.max(luminance(a),luminance(b))+.05)/(Math.min(luminance(a),luminance(b))+.05);
 export const ink = (bg:string) => {const dark=contrast(bg,'#111318'),light=contrast(bg,'#FFFFFF');return Math.max(dark,light)<4.5?'#000000':dark>light?'#111318':'#FFFFFF';};
 export function readable(color:string,bg:string,ratio=4.5) { const target=ink(bg); let c=color; for(let n=0;n<100&&contrast(c,bg)<ratio;n++) c=mix(c,target,.06); return c; }
+// Push a foreground color until it reaches `ratio` on every background it can
+// sit on. Returns the color unchanged when it already passes, so palettes that
+// read well keep their exact look.
+function legible(color:string,bgs:string[],ratio=4.5) { let c=color; for(let n=0;n<10;n++){ const bad=bgs.find(bg=>contrast(c,bg)<ratio); if(!bad) return c; const next=readable(c,bad,ratio); if(next===c) return c; c=next; } return c; }
 export function parseHex(s:string){
  const t=s.trim();
  if(/^#?[0-9a-f]{6}$/i.test(t))return('#'+t.replace('#','')).toUpperCase();
@@ -40,9 +44,11 @@ export function withLockedBackground<T extends ReturnType<typeof theme>>(t:T,loc
  const bg=lock;
  const surface=mix(mix(bg,'#FFFFFF',dark?.045:.45),t.highlight,.025);
  const raised=mix(mix(bg,dark?'#FFFFFF':t.accent,dark?.085:.09),t.highlight,.04);
- const text=readable(dark?'#F5F5F7':'#111318',bg,10);
- const muted=readable(mix(text,bg,.35),bg,4.6);
- return {...t,background:bg,surface,raised,text,muted,border:mix(bg,text,.16),'highlight-ink':readable(t.highlight,bg),link:readable(t.accent,bg),focus:readable(t.highlight,bg,3)};
+ const surfaces=[bg,surface,raised];
+ const text=legible(readable(dark?'#F5F5F7':'#111318',bg,10),surfaces);
+ const muted=legible(readable(mix(text,bg,.35),bg,4.6),surfaces);
+ const soft=legible(mix(bg,text,.68),surfaces),dim=legible(mix(bg,text,.46),surfaces),uidim=legible(mix(bg,text,.46),surfaces,3);
+ return {...t,background:bg,surface,raised,text,muted,border:mix(bg,text,.16),'text-soft':soft,'text-dim':dim,'ui-dim':uidim,'highlight-ink':legible(readable(t.highlight,bg),surfaces),link:legible(readable(t.accent,bg),surfaces),focus:legible(readable(t.highlight,bg,3),surfaces,3),success:legible(t.success,surfaces),warning:legible(t.warning,surfaces),danger:legible(t.danger,surfaces),'on-selection':legible(readable(text,t.selection),[t.selection])};
 }
 export function theme(p:Palette, dark:boolean) {
  const main=p.colors[p.main]||p.colors[0];
@@ -60,10 +66,13 @@ export function theme(p:Palette, dark:boolean) {
  const bg=dark?(luminance(base)>.07?mix(base,'#15171B',.65):base):base;
  const surface=mix(mix(bg,'#FFFFFF',dark?.045:.45),companionWash,.025);
  const raised=mix(mix(bg,dark?'#FFFFFF':main,dark?.085:.09),companionWash,.04);
- const text=readable(dark?'#F5F5F7':sorted[0],bg,10);
- const muted=readable(mix(text,bg,.35),bg,4.6);
+ const surfaces=[bg,surface,raised];
+ const text=legible(readable(dark?'#F5F5F7':sorted[0],bg,10),surfaces);
+ const muted=legible(readable(mix(text,bg,.35),bg,4.6),surfaces);
  const accent=main;
- return {background:bg, surface, raised, text, muted, border:mix(bg,text,.16), accent, 'on-accent':ink(accent), 'accent-hover':mix(accent,ink(accent),.08), highlight, 'on-highlight':ink(highlight), 'highlight-ink':readable(highlight,bg), 'highlight-hover':mix(highlight,ink(highlight),.06), link:readable(main,bg), focus:readable(highlight,bg,3), selection:mix(bg,highlight,dark?.30:.20), 'on-selection':readable(text,mix(bg,highlight,dark?.30:.20)), success:readable(dark?'#86C89D':'#367749',bg), warning:readable(dark?'#EAC16B':'#8D641D',bg), danger:readable(dark?'#F58A93':'#B03448',bg)};
+ const selection=mix(bg,highlight,dark?.30:.20);
+ const soft=legible(mix(bg,text,.68),surfaces),dim=legible(mix(bg,text,.46),surfaces),uidim=legible(mix(bg,text,.46),surfaces,3);
+ return {background:bg, surface, raised, text, muted, border:mix(bg,text,.16), 'text-soft':soft, 'text-dim':dim, 'ui-dim':uidim, accent, 'on-accent':legible(ink(accent),[accent]), 'accent-hover':mix(accent,ink(accent),.08), highlight, 'on-highlight':legible(ink(highlight),[highlight]), 'highlight-ink':legible(readable(highlight,bg),surfaces), 'highlight-hover':mix(highlight,ink(highlight),.06), link:legible(readable(main,bg),surfaces), focus:legible(readable(highlight,bg,3),surfaces,3), selection, 'on-selection':legible(readable(text,selection),[selection]), success:legible(readable(dark?'#86C89D':'#367749',bg),surfaces), warning:legible(readable(dark?'#EAC16B':'#8D641D',bg),surfaces), danger:legible(readable(dark?'#F58A93':'#B03448',bg),surfaces)};
 }
 export function css(p:Palette) {const block=(dark:boolean)=>Object.entries(theme(p,dark)).map(([k,v])=>`  --${k}: ${v};`).join('\n');return `/* ${p.name.replaceAll('*/','')} · primary ${p.colors[p.main]} */\n:root, [data-theme="light"] {\n  color-scheme: light;\n${block(false)}\n}\n\n@media (prefers-color-scheme: dark) {\n  :root:not([data-theme="light"]) {\n    color-scheme: dark;\n${block(true)}\n  }\n}\n\n[data-theme="dark"] {\n  color-scheme: dark;\n${block(true)}\n}\n`;}
 export function markdown(p:Palette) {const l=theme(p,false),d=theme(p,true);return `# ${p.name}\n\nSource: ${p.source}\n\nOriginal palette: ${p.colors.join(', ')}\n\nMain color: ${p.colors[p.main]}\n\n## Light and soft dark\n\nUI shades are derived from the original palette. Text pairs are contrast-adjusted.\n\n| Role | Light | Dark |\n| --- | --- | --- |\n${Object.keys(l).map(k=>`| ${k} | ${l[k as keyof typeof l]} | ${d[k as keyof typeof d]} |`).join('\n')}\n\n## CSS\n\n\`\`\`css\n${css(p)}\`\`\`\n`;}
