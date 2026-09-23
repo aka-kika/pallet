@@ -7,7 +7,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const alias={'@':root};
 const ui=path.join(root,'desktop/build/ui');
 await build({configFile:false,root:path.join(root,'desktop/renderer'),resolve:{alias},plugins:[react()],css:{postcss:root},build:{outDir:ui,emptyOutDir:true}});
-for(const file of ['palett-mark.png','favicon.png']){
+for(const file of ['palett-mark.png','favicon.png','app-icon.png']){
  const src=path.join(root,'public',file);
  if(fs.existsSync(src))fs.copyFileSync(src,path.join(ui,file));
 }

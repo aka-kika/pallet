@@ -1,6 +1,6 @@
 {
  "name":"palette-desktop-tools",
- "version":"1.1.0",
+ "version":"1.1.1",
  "private":true,
  "description":"Build tools only; not shipped inside Palette.app",
  "devDependencies":{"electron":"44.4.1","@electron/packager":"20.3.0"}

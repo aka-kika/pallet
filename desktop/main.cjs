@@ -1,4 +1,5 @@
-const {app,BrowserWindow,Tray,Menu,globalShortcut,ipcMain,clipboard,nativeImage,session,dialog,screen}=require('electron');
+const {app,BrowserWindow,Tray,Menu,globalShortcut,ipcMain,clipboard,nativeImage,session,dialog,screen,shell}=require('electron');
+const aboutLinks=new Set(['https://x.com/akakikaaa','https://github.com/aka-kika','https://akakika.com','https://akakika.com/']);
 const fs=require('node:fs');const path=require('node:path');const {pathToFileURL}=require('node:url');const {randomBytes}=require('node:crypto');
 const {startServer}=require('./server.cjs');
 app.setName('Pallet');
@@ -58,7 +59,7 @@ async function clipboardImage(){
  }
  return null;
 }
-function makeWindow(options){const w=new BrowserWindow({...options,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,sandbox:true,nodeIntegration:false}});w.webContents.setWindowOpenHandler(()=>({action:'deny'}));w.webContents.on('will-navigate',(event,url)=>{if(new URL(url).origin!==origin)event.preventDefault();});w.webContents.on('will-attach-webview',event=>event.preventDefault());return w;}
+function makeWindow(options){const w=new BrowserWindow({...options,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,sandbox:true,nodeIntegration:false}});w.webContents.setWindowOpenHandler(({url})=>{if(aboutLinks.has(url))void shell.openExternal(url);return {action:'deny'};});w.webContents.on('will-navigate',(event,url)=>{if(new URL(url).origin!==origin)event.preventDefault();});w.webContents.on('will-attach-webview',event=>event.preventDefault());return w;}
 async function start(){
  const directory=app.getPath('userData');fs.mkdirSync(directory,{recursive:true});
  const preferences=path.join(directory,'capture-settings.json');if(fs.existsSync(preferences)){try{const p=JSON.parse(fs.readFileSync(preferences,'utf8'));if(typeof p.autoCopyCSS==='boolean')prefs.autoCopyCSS=p.autoCopyCSS;if(typeof p.shortcut==='string')prefs.shortcut=p.shortcut;if(p.captureSize==='mini'||p.captureSize==='miny'||p.captureSize==='mo')prefs.captureSize=p.captureSize;prefs.appPresence=presenceOf(p.appPresence);}catch{}}
