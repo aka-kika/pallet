@@ -7,7 +7,7 @@ const m = await import('../lib/palettes.ts');
 
 const { seeds, theme, withLockedBackground, contrast } = m;
 
-const TEXT_45 = ['text', 'muted', 'highlight-ink', 'link', 'success', 'warning', 'danger'];
+const TEXT_45 = ['text', 'muted', 'highlight-ink', 'link', 'success', 'warning', 'danger', 'text-soft', 'text-dim'];
 const SURFACES = ['background', 'surface', 'raised'];
 const ON_PAIRS = [
   ['on-accent', 'accent'],
@@ -33,11 +33,13 @@ for (const seed of seeds) {
             }
           }
         }
-        for (const bg of SURFACES) {
-          const r = contrast(t.focus, t[bg]);
-          if (r < 3) {
-            failures++;
-            console.log(`${seed.name} | main ${p.colors[main]} | ${mode} | focus on ${bg} | ${r.toFixed(2)}:1`);
+        for (const fg of ['focus', 'ui-dim']) {
+          for (const bg of SURFACES) {
+            const r = contrast(t[fg], t[bg]);
+            if (r < 3) {
+              failures++;
+              console.log(`${seed.name} | main ${p.colors[main]} | ${mode} | ${fg} on ${bg} | ${r.toFixed(2)}:1`);
+            }
           }
         }
         for (const [fg, bg] of ON_PAIRS) {
