@@ -5,15 +5,18 @@ app.setName('Pallet');
 app.setPath('userData', path.join(app.getPath('appData'), 'Palette'));
 let main,capture,tray,origin,server,quitting=false,ready=false,pendingImage=null;
 const captureSizes={mini:{w:240,h:156},miny:{w:300,h:196},mo:{w:360,h:240}};
-let prefs={autoCopyCSS:false,shortcut:'CommandOrControl+Shift+P',shortcutRegistered:false,captureSize:'mo'};
+let prefs={autoCopyCSS:false,shortcut:'CommandOrControl+Shift+P',shortcutRegistered:false,captureSize:'mo',appPresence:'both'};
 function captureBox(){return captureSizes[prefs.captureSize]||captureSizes.mo;}
+function presenceOf(v){return v==='dock'||v==='menubar'?v:'both';}
 const windows=()=>[main,capture].filter(w=>w&&!w.isDestroyed());
-function showMain(){main.show();main.focus();app.dock?.show();}
+function showMain(){main.show();main.focus();if(prefs.appPresence!=='menubar')app.dock?.show();}
+function makeTray(){const image=nativeImage.createFromPath(path.join(__dirname,'trayTemplate.png'));image.setTemplateImage(true);tray=new Tray(image);tray.setToolTip('Pallet — drop an image');tray.on('click',toggleCapture);const menu=Menu.buildFromTemplate([{label:'Open Collection',click:showMain},{label:'Settings…',click:()=>{showMain();main.webContents.send('palette:open-settings');}},{type:'separator'},{label:'Quit Pallet',click:()=>app.quit()}]);tray.on('right-click',()=>tray.popUpContextMenu(menu));tray.on('drop-files',async(_event,files)=>{showCapture();const file=files[0];try{if(!file||!fs.statSync(file).isFile()||fs.statSync(file).size>20*1024*1024)throw new Error('Choose an image smaller than 20 MB.');const ext=path.extname(file).toLowerCase();const mime={'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.avif':'image/avif'}[ext];if(!mime)throw new Error('Use PNG, JPG, WebP, GIF, or AVIF.');const data={name:path.basename(file),dataUrl:`data:${mime};base64,${fs.readFileSync(file).toString('base64')}`};if(ready)capture.webContents.send('palette:image',data);else pendingImage=data;}catch(e){dialog.showErrorBox('Could not capture image',e.message);}});}
+function applyPresence(){const mode=presenceOf(prefs.appPresence);prefs.appPresence=mode;const live=tray&&!tray.isDestroyed();if(mode==='dock'){if(live){tray.destroy();tray=null;}}else if(!live)makeTray();if(mode==='menubar')app.dock?.hide();}
 function layoutCapture(){
  const {w,h}=captureBox();
  if(!capture||capture.isDestroyed())return;
  capture.setSize(w,h);
- const b=tray.getBounds();
+ const b=tray&&!tray.isDestroyed()?tray.getBounds():{x:0,y:0,width:0,height:0};
  const point=b.width>0&&b.height>0?{x:b.x+b.width/2,y:b.y+b.height/2}:screen.getCursorScreenPoint();
  const area=screen.getDisplayNearestPoint(point).workArea;
  const x=Math.max(area.x,Math.min((b.width>0?b.x-Math.round(w/2)+Math.round(b.width/2):point.x-Math.round(w/2)),area.x+area.width-w));
@@ -32,7 +35,7 @@ function toggleCapture(){
  showCapture();
 }
 function assertSender(event){if(!windows().some(w=>w.webContents===event.sender)||event.senderFrame!==event.sender.mainFrame||new URL(event.senderFrame.url).origin!==origin)throw new Error('Untrusted caller');}
-function savePrefs(next){fs.writeFileSync(path.join(app.getPath('userData'),'capture-settings.json'),JSON.stringify({autoCopyCSS:next.autoCopyCSS,shortcut:next.shortcut,captureSize:next.captureSize}),{mode:0o600});}
+function savePrefs(next){fs.writeFileSync(path.join(app.getPath('userData'),'capture-settings.json'),JSON.stringify({autoCopyCSS:next.autoCopyCSS,shortcut:next.shortcut,captureSize:next.captureSize,appPresence:next.appPresence}),{mode:0o600});}
 function registerShortcut(shortcut){if(typeof shortcut!=='string'||shortcut.length>100||!/(Command|Control|Cmd|Ctrl)/i.test(shortcut)||!shortcut.includes('+'))throw new Error('Use a shortcut with Command or Control and a key.');let success=false;try{success=globalShortcut.unregister(shortcut);success=globalShortcut.register(shortcut,showCapture);}catch{}return success;}
 async function clipboardImage(){
  const items=await clipboard.read();
@@ -58,7 +61,7 @@ async function clipboardImage(){
 function makeWindow(options){const w=new BrowserWindow({...options,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,sandbox:true,nodeIntegration:false}});w.webContents.setWindowOpenHandler(()=>({action:'deny'}));w.webContents.on('will-navigate',(event,url)=>{if(new URL(url).origin!==origin)event.preventDefault();});w.webContents.on('will-attach-webview',event=>event.preventDefault());return w;}
 async function start(){
  const directory=app.getPath('userData');fs.mkdirSync(directory,{recursive:true});
- const preferences=path.join(directory,'capture-settings.json');if(fs.existsSync(preferences)){try{const p=JSON.parse(fs.readFileSync(preferences,'utf8'));if(typeof p.autoCopyCSS==='boolean')prefs.autoCopyCSS=p.autoCopyCSS;if(typeof p.shortcut==='string')prefs.shortcut=p.shortcut;if(p.captureSize==='mini'||p.captureSize==='miny'||p.captureSize==='mo')prefs.captureSize=p.captureSize;}catch{}}
+ const preferences=path.join(directory,'capture-settings.json');if(fs.existsSync(preferences)){try{const p=JSON.parse(fs.readFileSync(preferences,'utf8'));if(typeof p.autoCopyCSS==='boolean')prefs.autoCopyCSS=p.autoCopyCSS;if(typeof p.shortcut==='string')prefs.shortcut=p.shortcut;if(p.captureSize==='mini'||p.captureSize==='miny'||p.captureSize==='mo')prefs.captureSize=p.captureSize;prefs.appPresence=presenceOf(p.appPresence);}catch{}}
  const service=await import(pathToFileURL(path.join(__dirname,'build/service/service.mjs')).href);
  const token=randomBytes(32).toString('hex');
  ({server,origin}=await startServer({directory,ui:path.join(__dirname,'build/ui'),service,token,onChange:()=>windows().forEach(w=>w.webContents.send('palette:collection-changed'))}));
@@ -67,19 +70,17 @@ async function start(){
  main=makeWindow({width:1160,height:840,minWidth:360,minHeight:560,title:'Pallet',show:false,titleBarStyle:'hidden',backgroundColor:'#16181e'});
  main.setWindowButtonVisibility(false);
  capture=makeWindow({width:captureBox().w,height:captureBox().h,resizable:false,alwaysOnTop:true,skipTaskbar:true,frame:false,title:'',show:false,autoHideMenuBar:true});
- main.on('close',event=>{if(!quitting){event.preventDefault();main.hide();app.dock?.hide();}});capture.on('close',event=>{if(!quitting){event.preventDefault();capture.hide();}});
- const image=nativeImage.createFromPath(path.join(__dirname,'trayTemplate.png'));image.setTemplateImage(true);tray=new Tray(image);tray.setToolTip('Pallet — drop an image');tray.on('click',toggleCapture);
- const menu=Menu.buildFromTemplate([{label:'Open Collection',click:showMain},{label:'Settings…',click:()=>{showMain();main.webContents.send('palette:open-settings');}},{type:'separator'},{label:'Quit Pallet',click:()=>app.quit()}]);tray.on('right-click',()=>tray.popUpContextMenu(menu));
- tray.on('drop-files',async(_event,files)=>{showCapture();const file=files[0];try{if(!file||!fs.statSync(file).isFile()||fs.statSync(file).size>20*1024*1024)throw new Error('Choose an image smaller than 20 MB.');const ext=path.extname(file).toLowerCase();const mime={'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.avif':'image/avif'}[ext];if(!mime)throw new Error('Use PNG, JPG, WebP, GIF, or AVIF.');const data={name:path.basename(file),dataUrl:`data:${mime};base64,${fs.readFileSync(file).toString('base64')}`};if(ready)capture.webContents.send('palette:image',data);else pendingImage=data;}catch(e){dialog.showErrorBox('Could not capture image',e.message);}});
+ main.on('close',event=>{if(!quitting){event.preventDefault();main.hide();if(prefs.appPresence!=='dock')app.dock?.hide();}});capture.on('close',event=>{if(!quitting){event.preventDefault();capture.hide();}});
+ applyPresence();
  const handle=(name,fn)=>ipcMain.handle('palette:'+name,(event,...args)=>{assertSender(event);return fn(...args);});
  handle('preferences',()=>prefs);
- handle('set-preferences',value=>{if(!value||typeof value.autoCopyCSS!=='boolean')throw new Error('Invalid preferences');let registered=prefs.shortcutRegistered;if(value.shortcut!==prefs.shortcut||!registered){registered=registerShortcut(value.shortcut);if(!registered)throw new Error('Shortcut unavailable. Your previous shortcut is still active.');if(prefs.shortcutRegistered)globalShortcut.unregister(prefs.shortcut);}const captureSize=value.captureSize==='mini'||value.captureSize==='miny'||value.captureSize==='mo'?value.captureSize:prefs.captureSize||'mo';const next={autoCopyCSS:value.autoCopyCSS,shortcut:value.shortcut,shortcutRegistered:registered,captureSize};savePrefs(next);prefs=next;layoutCapture();return prefs;});
+ handle('set-preferences',value=>{if(!value||typeof value.autoCopyCSS!=='boolean')throw new Error('Invalid preferences');let registered=prefs.shortcutRegistered;if(value.shortcut!==prefs.shortcut||!registered){registered=registerShortcut(value.shortcut);if(!registered)throw new Error('Shortcut unavailable. Your previous shortcut is still active.');if(prefs.shortcutRegistered)globalShortcut.unregister(prefs.shortcut);}const captureSize=value.captureSize==='mini'||value.captureSize==='miny'||value.captureSize==='mo'?value.captureSize:prefs.captureSize||'mo';const appPresence=presenceOf(value.appPresence);const next={autoCopyCSS:value.autoCopyCSS,shortcut:value.shortcut,shortcutRegistered:registered,captureSize,appPresence};savePrefs(next);prefs=next;applyPresence();layoutCapture();return prefs;});
  handle('clipboard-image',clipboardImage);
  handle('copy-css',async text=>{if(typeof text!=='string'||text.length>100000)throw new Error('Invalid CSS');await clipboard.writeText(text);});
  handle('open-collection',()=>{capture.hide();showMain();});
  handle('open-settings',()=>{capture.hide();showMain();main.webContents.send('palette:open-settings');});
  handle('hide-capture',()=>capture.hide());
- handle('hide-main',()=>{if(main&&!main.isDestroyed()){main.hide();app.dock?.hide();}});
+ handle('hide-main',()=>{if(main&&!main.isDestroyed()){main.hide();if(prefs.appPresence!=='dock')app.dock?.hide();}});
  handle('suggest-name',async colors=>{if(!Array.isArray(colors)||!colors.length)return null;const helper=[path.join(process.resourcesPath||'', 'suggest-name'),path.join(__dirname,'suggest-name')].find(p=>p&&fs.existsSync(p));if(!helper)return null;try{const {execFile}=require('node:child_process');const {promisify}=require('node:util');const {stdout}=await promisify(execFile)(helper,colors.filter(c=>typeof c==='string').slice(0,6),{timeout:8000});const name=String(stdout||'').trim();return name.length>1&&name.length<=100?name:null;}catch{return null;}});
  ipcMain.on('palette:ready',event=>{assertSender(event);if(event.sender===capture.webContents){ready=true;if(pendingImage){capture.webContents.send('palette:image',pendingImage);pendingImage=null;}}});
  Menu.setApplicationMenu(Menu.buildFromTemplate([{label:'Pallet',submenu:[{role:'about'},{type:'separator'},{label:'Quick Capture',click:showCapture},{role:'hide'},{role:'quit'}]},{label:'Edit',submenu:[{role:'undo'},{role:'redo'},{type:'separator'},{role:'cut'},{role:'copy'},{role:'paste'},{role:'selectAll'}]},{label:'Window',submenu:[{role:'minimize'},{label:'Open Collection',click:showMain}]}]));
