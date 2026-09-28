@@ -1,0 +1,88 @@
+{
+  "default-configuration": "Release",
+  "configurations": [
+    "Debug",
+    "Release",
+  ],
+  "localizations": {
+    "development": "en",
+    "supported": [
+      "Base",
+    ],
+  },
+  "files": [
+    { "kind": "folder", "path": "Pallet", "target-membership": [ "Pallet" ] },
+    {
+      "kind": "group",
+      "path": "Resources",
+      "children": [
+        { "path": "AppIcon.icon", "target-membership": [ "Pallet/resources" ] },
+        { "path": "Assets.xcassets", "target-membership": [ "Pallet/resources" ] },
+      ],
+    }, {
+      "kind": "group",
+      "path": "../shared",
+      "name": "Shared",
+      "children": [
+        { "path": "builtin-palettes.json", "target-membership": [ "Pallet/resources" ] },
+      ],
+    }, {
+      "kind": "group",
+      "name": "Products",
+      "children": [
+        { "path": "<PRODUCTS>/Pallet.app", "id": "5F1C0A7E2B9D4C3A8E6F1B20", "index": false },
+      ],
+    },
+  ],
+  "targets": [
+    {
+      "name": "Pallet",
+      "id": "A3D94E1B7C6F2085B4E1C9D7",
+      "product": "Products/Pallet.app",
+      "product-type": "application",
+      "build-phases": [
+        "compile-sources",
+        "resources",
+      ],
+      "build-settings": {
+        "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
+        "CODE_SIGN_IDENTITY": "-",
+        "CODE_SIGN_STYLE": "Manual",
+        "ENABLE_APP_SANDBOX": "NO",
+        "ENABLE_HARDENED_RUNTIME": "YES",
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "INFOPLIST_KEY_CFBundleDisplayName": "Pallet",
+        "INFOPLIST_KEY_LSApplicationCategoryType": "public.app-category.graphics-design",
+        "INFOPLIST_KEY_NSHumanReadableCopyright": "Made by Kika",
+        "LD_RUNPATH_SEARCH_PATHS": [
+          "$(inherited)",
+          "@executable_path/../Frameworks",
+        ],
+        "PRODUCT_BUNDLE_IDENTIFIER": "com.akakika.pallet",
+        "PRODUCT_NAME": "Pallet",
+        "SWIFT_DEFAULT_ACTOR_ISOLATION": "MainActor",
+      },
+    },
+  ],
+  "build-settings": {
+    "ALWAYS_SEARCH_USER_PATHS": "NO",
+    "CLANG_ENABLE_MODULES": "YES",
+    "CLANG_ENABLE_OBJC_ARC": "YES",
+    "COPY_PHASE_STRIP": "NO",
+    "CURRENT_PROJECT_VERSION": "1",
+    "DEBUG_INFORMATION_FORMAT[config=Debug]": "dwarf",
+    "DEBUG_INFORMATION_FORMAT[config=Release]": "dwarf-with-dsym",
+    "ENABLE_TESTABILITY[config=Debug]": "YES",
+    "GCC_OPTIMIZATION_LEVEL[config=Debug]": "0",
+    "MACOSX_DEPLOYMENT_TARGET": "26.0",
+    "MARKETING_VERSION": "2.0",
+    "ONLY_ACTIVE_ARCH[config=Debug]": "YES",
+    "SDKROOT": "macosx",
+    "SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Debug]": "DEBUG",
+    "SWIFT_APPROACHABLE_CONCURRENCY": "YES",
+    "SWIFT_COMPILATION_MODE[config=Release]": "wholemodule",
+    "SWIFT_OPTIMIZATION_LEVEL[config=Debug]": "-Onone",
+    "SWIFT_OPTIMIZATION_LEVEL[config=Release]": "-O",
+    "SWIFT_VERSION": "6.0",
+  },
+}

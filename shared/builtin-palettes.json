@@ -1,0 +1,273 @@
+[
+  {
+    "id": "seed-1",
+    "name": "Asphalt Lime",
+    "colors": [
+      "#111111",
+      "#737373",
+      "#4F6F9F",
+      "#D7FF3F",
+      "#F8F8F5"
+    ],
+    "main": 2,
+    "favorite": false,
+    "source": "Earlier theme collection"
+  },
+  {
+    "id": "seed-2",
+    "name": "Dusty Evening",
+    "colors": [
+      "#C98C96",
+      "#F4E9E2",
+      "#F0B49D",
+      "#6F5147",
+      "#7789A5"
+    ],
+    "main": 0,
+    "favorite": false,
+    "source": "Earlier theme collection"
+  },
+  {
+    "id": "seed-3",
+    "name": "Midnight Interface",
+    "colors": [
+      "#101A33",
+      "#3F7CFF",
+      "#DDEBFF",
+      "#F8FBFF",
+      "#7C8794"
+    ],
+    "main": 1,
+    "favorite": false,
+    "source": "Earlier theme collection"
+  },
+  {
+    "id": "seed-4",
+    "name": "Vibrant Sunset",
+    "colors": [
+      "#4D3A4D",
+      "#BE5CA9",
+      "#D59CC5",
+      "#EADADA"
+    ],
+    "main": 1,
+    "favorite": false,
+    "source": "Earlier theme collection"
+  },
+  {
+    "id": "seed-5",
+    "name": "Orchid Mint",
+    "colors": [
+      "#7269E3",
+      "#272C39",
+      "#A783A6",
+      "#98DEA3"
+    ],
+    "main": 0,
+    "favorite": false,
+    "source": "Earlier theme collection"
+  },
+  {
+    "id": "seed-6",
+    "name": "Studio Blue",
+    "colors": [
+      "#1E56C3",
+      "#ECDCF4",
+      "#F3ECDE",
+      "#272932"
+    ],
+    "main": 0,
+    "favorite": false,
+    "source": "Earlier theme collection"
+  },
+  {
+    "id": "seed-7",
+    "name": "Wallet Lime",
+    "colors": [
+      "#D7F266",
+      "#151514",
+      "#D3DDDA",
+      "#F7F8F6"
+    ],
+    "main": 0,
+    "favorite": false,
+    "source": "Earlier theme collection"
+  },
+  {
+    "id": "seed-8",
+    "name": "Astro Orange",
+    "colors": [
+      "#E46036",
+      "#F1EDE5",
+      "#000000",
+      "#FFFFFF"
+    ],
+    "main": 0,
+    "favorite": false,
+    "source": "Earlier theme collection"
+  },
+  {
+    "id": "seed-9",
+    "name": "Signal Orange",
+    "colors": [
+      "#FC5723",
+      "#DFDFDF",
+      "#AAAAAA",
+      "#FFFFFF"
+    ],
+    "main": 0,
+    "favorite": false,
+    "source": "Earlier theme collection"
+  },
+  {
+    "id": "seed-10",
+    "name": "Apple Modern",
+    "colors": [
+      "#F5F5F7",
+      "#1D1D1F",
+      "#AAAAAA",
+      "#007AFF"
+    ],
+    "main": 3,
+    "favorite": false,
+    "source": "Earlier theme collection"
+  },
+  {
+    "id": "seed-11",
+    "name": "Storm Cloud",
+    "colors": [
+      "#101721",
+      "#434A54",
+      "#838694",
+      "#474958"
+    ],
+    "main": 1,
+    "favorite": false,
+    "source": "Photo reference"
+  },
+  {
+    "id": "seed-12",
+    "name": "Slate & Citron",
+    "colors": [
+      "#FFFFFF",
+      "#57677A",
+      "#E1E821"
+    ],
+    "main": 1,
+    "favorite": false,
+    "source": "Photo reference"
+  },
+  {
+    "id": "seed-13",
+    "name": "Graphic Garden",
+    "colors": [
+      "#59B9C7",
+      "#D2DEE3",
+      "#2B313F"
+    ],
+    "main": 0,
+    "favorite": false,
+    "source": "Photo reference"
+  },
+  {
+    "id": "seed-14",
+    "name": "June & Cornflower",
+    "colors": [
+      "#BADE4F",
+      "#6E8EEC",
+      "#282B26",
+      "#F0ECE5"
+    ],
+    "main": 1,
+    "favorite": false,
+    "source": "Photo reference"
+  },
+  {
+    "id": "seed-15",
+    "name": "Periwinkle Study",
+    "colors": [
+      "#101726",
+      "#6176AD",
+      "#9290CF",
+      "#92A2D8",
+      "#BBC2D7",
+      "#F4F4F4"
+    ],
+    "main": 1,
+    "favorite": false,
+    "source": "Photo reference · estimated swatches; labels unreadable"
+  },
+  {
+    "id": "seed-16",
+    "name": "Ash & Jet Stream",
+    "colors": [
+      "#B4B9BA",
+      "#BACCD0",
+      "#000000",
+      "#111111"
+    ],
+    "main": 1,
+    "favorite": false,
+    "source": "Photo reference"
+  },
+  {
+    "id": "seed-17",
+    "name": "Carbon Electric",
+    "colors": [
+      "#101317",
+      "#343A40",
+      "#AAB2BD",
+      "#F4F7FA",
+      "#3B82F6"
+    ],
+    "main": 4,
+    "favorite": false,
+    "source": "Photo reference"
+  },
+  {
+    "id": "seed-18",
+    "name": "Graphite Sprout",
+    "colors": [
+      "#23262C",
+      "#3A3F47",
+      "#D1D5DB",
+      "#FE7733",
+      "#B1FA63",
+      "#FFFFFF"
+    ],
+    "main": 4,
+    "favorite": false,
+    "source": "Photo reference"
+  },
+  {
+    "id": "seed-19",
+    "name": "Developer Dusk",
+    "colors": [
+      "#0F172A",
+      "#1E293B",
+      "#F1F5F9",
+      "#94A3B8",
+      "#818CF8",
+      "#4ADE80"
+    ],
+    "main": 4,
+    "favorite": false,
+    "source": "Photo reference"
+  },
+  {
+    "id": "seed-20",
+    "name": "Willow & White",
+    "colors": [
+      "#FFFFFF",
+      "#F4F3EF",
+      "#DFDED9",
+      "#B5B1AE",
+      "#B0BFCC",
+      "#9ABDE2",
+      "#3F3F3F"
+    ],
+    "main": 5,
+    "favorite": false,
+    "source": "Photo reference"
+  }
+]

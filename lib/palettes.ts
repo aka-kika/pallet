@@ -1,27 +1,7 @@
+import builtins from '../shared/builtin-palettes.json' with {type:'json'};
 export type Palette = { id: string; name: string; colors: string[]; main: number; favorite: boolean; source: string };
-const definitions: [string, string[], number, string?][] = [
- ['Asphalt Lime',['#111111','#737373','#4F6F9F','#D7FF3F','#F8F8F5'],2],
- ['Dusty Evening',['#C98C96','#F4E9E2','#F0B49D','#6F5147','#7789A5'],0],
- ['Midnight Interface',['#101A33','#3F7CFF','#DDEBFF','#F8FBFF','#7C8794'],1],
- ['Vibrant Sunset',['#4D3A4D','#BE5CA9','#D59CC5','#EADADA'],1],
- ['Orchid Mint',['#7269E3','#272C39','#A783A6','#98DEA3'],0],
- ['Studio Blue',['#1E56C3','#ECDCF4','#F3ECDE','#272932'],0],
- ['Wallet Lime',['#D7F266','#151514','#D3DDDA','#F7F8F6'],0],
- ['Astro Orange',['#E46036','#F1EDE5','#000000','#FFFFFF'],0],
- ['Signal Orange',['#FC5723','#DFDFDF','#AAAAAA','#FFFFFF'],0],
- ['Apple Modern',['#F5F5F7','#1D1D1F','#AAAAAA','#007AFF'],3],
- ['Storm Cloud',['#101721','#434A54','#838694','#474958'],1],
- ['Slate & Citron',['#FFFFFF','#57677A','#E1E821'],1],
- ['Graphic Garden',['#59B9C7','#D2DEE3','#2B313F'],0],
- ['June & Cornflower',['#BADE4F','#6E8EEC','#282B26','#F0ECE5'],1],
- ['Periwinkle Study',['#101726','#6176AD','#9290CF','#92A2D8','#BBC2D7','#F4F4F4'],1,'Photo reference · estimated swatches; labels unreadable'],
- ['Ash & Jet Stream',['#B4B9BA','#BACCD0','#000000','#111111'],1],
- ['Carbon Electric',['#101317','#343A40','#AAB2BD','#F4F7FA','#3B82F6'],4],
- ['Graphite Sprout',['#23262C','#3A3F47','#D1D5DB','#FE7733','#B1FA63','#FFFFFF'],4],
- ['Developer Dusk',['#0F172A','#1E293B','#F1F5F9','#94A3B8','#818CF8','#4ADE80'],4],
- ['Willow & White',['#FFFFFF','#F4F3EF','#DFDED9','#B5B1AE','#B0BFCC','#9ABDE2','#3F3F3F'],5],
-];
-export const seeds: Palette[] = definitions.map(([name, colors, main, source], i) => ({id:`seed-${i+1}`, name, colors, main, favorite:false, source:source || (i<10?'Earlier theme collection':'Photo reference')}));
+// Built-in palettes live in one JSON file shared with the SwiftUI app.
+export const seeds: Palette[] = builtins;
 export const rgb = (h: string) => [1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
 export const hex = (c:number[]) => '#'+c.map(n=>Math.round(Math.max(0,Math.min(255,n))).toString(16).padStart(2,'0')).join('').toUpperCase();
 export const mix = (a:string,b:string,t:number) => hex(rgb(a).map((n,i)=>n+(rgb(b)[i]-n)*t));
