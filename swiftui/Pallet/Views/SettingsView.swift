@@ -2,6 +2,9 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
+    static let keys = [("Space", "Shuffle"), ("\u{2190} \u{2192}", "Change main color"), ("\u{2191} \u{2193}", "Next or previous palette"),
+                       ("L", "Lock background"), ("\u{2318}C", "Copy CSS"), ("\u{2318}V", "Paste an image"),
+                       ("\u{2318}O", "Add image"), ("\u{2318}E", "Export theme")]
     @State private var lockField = ""
 
     var body: some View {
@@ -13,7 +16,7 @@ struct SettingsView: View {
                 Text("Soft Dark").tag(AppModel.Appearance.dark)
             }
             .pickerStyle(.radioGroup)
-            Toggle("Show keyboard guide", isOn: Binding(get: { !model.hideKeyboardGuide }, set: { model.hideKeyboardGuide = !$0 }))
+            Toggle("Show Shuffle button", isOn: $model.showShuffleButton)
             Toggle("Add dropped images right away", isOn: $model.autoImportOnDrop)
             Text("Skips the Add image dialog. The Add image button still opens it.")
                 .font(.caption).foregroundStyle(.secondary)
@@ -24,6 +27,11 @@ struct SettingsView: View {
                 }
             Text("A hex color keeps the page background fixed while palettes change. Empty to unlock.")
                 .font(.caption).foregroundStyle(.secondary)
+            Section("Keyboard") {
+                ForEach(Self.keys, id: \.0) { key, label in
+                    LabeledContent(label) { Text(key).font(.system(.body, design: .rounded)).foregroundStyle(.secondary) }
+                }
+            }
         }
         .formStyle(.grouped)
         .frame(width: 440)

@@ -8,6 +8,9 @@ struct ContentView: View {
     @Environment(\.openWindow) private var openWindow
     @FocusState private var focused: Bool
     @State private var dropping = false
+    @State private var width: CGFloat = 860
+    /// Only keyboard navigation scrolls; shuffle and saving keep the view still.
+    @State private var scrollTarget: String?
 
     private var active: Palette {
         store.palettes.first { $0.id == model.selectedID } ?? store.palettes.first
@@ -16,6 +19,8 @@ struct ContentView: View {
     private var dark: Bool { colorScheme == .dark }
     private var theme: Theme { Theme(active, dark: dark).locked(to: model.bgLock, dark: dark) }
     private var visible: [Palette] { model.favoritesOnly ? store.palettes.filter(\.favorite) : store.palettes }
+    /// Cards grow with the window and a column is added only when they get roomy.
+    private var columns: Int { max(2, min(6, Int((width - 40 + 18) / (170 + 18)))) }
 
     var body: some View {
         @Bindable var model = model
@@ -23,10 +28,9 @@ struct ContentView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 SwatchStrip(palette: active, onMain: { setMain($0) }, onCopy: { copyHex($0) })
-                    .frame(height: 200)
+                    .frame(height: min(180, max(110, width * 0.2)))
                 RotationRow(palette: active, dark: dark, rotate: rotate)
-                    .padding(.top, 14)
-                    .padding(.bottom, 16)
+                    .padding(.vertical, 12)
                 if active.source.contains("estimated") {
                     Text(active.source).font(.caption).foregroundStyle(theme.muted).padding(.bottom, 16)
                 }
@@ -38,7 +42,7 @@ struct ContentView: View {
                 if visible.isEmpty {
                     EmptyFavorites { model.favoritesOnly = false }
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 220, maximum: 400), spacing: 28)], spacing: 22) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 18), count: columns), spacing: 12) {
                         ForEach(visible) { p in
                             PaletteCard(palette: p, selected: p.id == active.id,
                                         select: { model.selectedID = p.id; focused = true },
@@ -49,20 +53,22 @@ struct ContentView: View {
                     }
                 }
                 CollectionTools()
-                    .padding(.top, 36)
+                    .padding(.top, 24)
             }
-            .padding(.horizontal, 32)
-            .padding(.top, 8)
-            .padding(.bottom, 32)
+            .padding(.horizontal, 20)
+            .padding(.top, 4)
+            .padding(.bottom, 20)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+            .animation(.smooth(duration: 0.3), value: columns)
         }
         .scrollIndicators(.never)
-        .onChange(of: model.selectedID) { _, id in
-            withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo(id) }
+        .onChange(of: scrollTarget) { _, id in
+            guard let id else { return }
+            withAnimation(.easeInOut(duration: 0.2)) { proxy.scrollTo(id) }
+            scrollTarget = nil
         }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !model.hideKeyboardGuide { KeyboardBar(count: store.palettes.count, dark: dark, shuffle: shuffle) }
-        }
+        .frame(minWidth: 520, minHeight: 440)
         .overlay(alignment: .bottom) { ToastView() }
         .overlay { if dropping { DropOverlay() } }
         .toolbar { toolbar }
@@ -105,6 +111,10 @@ struct ContentView: View {
         .sharedBackgroundVisibility(.hidden)
         ToolbarSpacer(.flexible)
         ToolbarItemGroup(placement: .primaryAction) {
+            if model.showShuffleButton {
+                Button(action: shuffle) { Image(systemName: "shuffle").foregroundStyle(theme.icon) }
+                    .help("Shuffle (Space)")
+            }
             Button { model.favoritesOnly.toggle() } label: {
                 Image(systemName: model.favoritesOnly ? "heart.fill" : "heart")
                     .foregroundStyle(model.favoritesOnly ? theme.highlightInk : theme.icon)
@@ -184,7 +194,9 @@ struct ContentView: View {
             let list = visible
             guard !list.isEmpty else { return .handled }
             let i = list.firstIndex { $0.id == active.id } ?? 0
-            model.selectedID = list[(i + (press.key == .downArrow ? 1 : -1) + list.count) % list.count].id
+            let next = list[(i + (press.key == .downArrow ? 1 : -1) + list.count) % list.count].id
+            model.selectedID = next
+            scrollTarget = next
         default:
             if press.characters.lowercased() == "l" { toggleLock(model: model, store: store) } else { return .ignored }
         }

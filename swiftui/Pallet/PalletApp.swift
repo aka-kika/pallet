@@ -12,7 +12,8 @@ struct PalletApp: App {
                 .environment(store)
                 .environment(model)
         }
-        .defaultSize(width: 1180, height: 860)
+        .defaultSize(width: 880, height: 680)
+        .windowResizability(.contentMinSize)
         .windowToolbarStyle(.unified(showsTitle: false))
         .commands { PalletCommands(store: store, model: model) }
 
@@ -39,7 +40,7 @@ final class AppModel {
     var selectedID: String { didSet { save("selected", selectedID) } }
     var appearance: Appearance { didSet { save("appearance", appearance.rawValue) } }
     var bgLock: String? { didSet { save("bgLock", bgLock) } }
-    var hideKeyboardGuide: Bool { didSet { save("hideKeyboardGuide", hideKeyboardGuide) } }
+    var showShuffleButton: Bool { didSet { save("showShuffleButton", showShuffleButton) } }
     var autoImportOnDrop: Bool { didSet { save("autoImportOnDrop", autoImportOnDrop) } }
     var favoritesOnly = false
 
@@ -53,7 +54,7 @@ final class AppModel {
         selectedID = d.string(forKey: "selected") ?? "seed-12"
         appearance = Appearance(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
         bgLock = d.string(forKey: "bgLock").flatMap(ColorMath.parseHex)
-        hideKeyboardGuide = d.bool(forKey: "hideKeyboardGuide")
+        showShuffleButton = d.object(forKey: "showShuffleButton") as? Bool ?? true
         autoImportOnDrop = d.bool(forKey: "autoImportOnDrop")
     }
 

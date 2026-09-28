@@ -44,18 +44,14 @@ struct SwatchStrip: View {
                         Rectangle().fill(Color(hex: color))
                             .contentShape(.rect)
                             .onTapGesture { onMain(i) }
-                        Button { onCopy(color) } label: {
-                            HStack(spacing: 8) {
-                                if i == palette.main { Circle().fill(ink).frame(width: 9, height: 9) }
-                                Text(color).font(.system(size: 11, weight: .medium, design: .monospaced)).tracking(1.5)
-                            }
-                            .padding(.horizontal, 9).padding(.vertical, 5)
-                            .background(ink.opacity(0.14), in: .rect(cornerRadius: 7))
-                            .foregroundStyle(ink)
+                        // Full label when it fits, then a tighter one, then only the dot:
+                        // never a wrapped hex code.
+                        ViewThatFits(in: .horizontal) {
+                            chip(color, main: i == palette.main, ink: ink, tracking: 1.5, padding: 9)
+                            chip(color, main: i == palette.main, ink: ink, tracking: 0, padding: 6)
+                            chip(nil, main: i == palette.main, ink: ink, tracking: 0, padding: 6)
                         }
-                        .buttonStyle(.plain)
-                        .help("Copy \(color)")
-                        .padding(18)
+                        .padding(12)
                         .offset(y: hovered == i ? -3 : 0)
                     }
                     .frame(width: geo.size.width * weight(i) / total)
@@ -70,6 +66,24 @@ struct SwatchStrip: View {
         .clipShape(.rect(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(theme.text.opacity(0.06)))
     }
+
+    @ViewBuilder
+    private func chip(_ label: String?, main: Bool, ink: Color, tracking: CGFloat, padding: CGFloat) -> some View {
+        if label != nil || main {
+            Button { if let label { onCopy(label) } } label: {
+                HStack(spacing: 6) {
+                    if main { Circle().fill(ink).frame(width: 8, height: 8) }
+                    if let label { Text(label).font(.system(size: 11, weight: .medium, design: .monospaced)).tracking(tracking).lineLimit(1).fixedSize() }
+                }
+                .padding(.horizontal, padding).padding(.vertical, 5)
+                .background(ink.opacity(0.14), in: .rect(cornerRadius: 7))
+                .foregroundStyle(ink)
+            }
+            .buttonStyle(.plain)
+            .help(label.map { "Copy \($0)" } ?? "")
+            .fixedSize()
+        }
+    }
 }
 
 /// Previous / next main color around the palette caption.
@@ -81,7 +95,7 @@ struct RotationRow: View {
 
     var body: some View {
         HStack {
-            ThemeIconButton(systemName: "arrow.left", filled: true, help: "Previous main color") { rotate(-1) }
+            ThemeIconButton(systemName: "arrow.left", filled: true, help: "Previous main color", size: 34) { rotate(-1) }
             Spacer(minLength: 14)
             HStack(spacing: 10) {
                 Text(palette.name).font(.system(size: 13, weight: .medium)).tracking(1).foregroundStyle(theme.textSoft)
@@ -92,7 +106,7 @@ struct RotationRow: View {
             }
             .lineLimit(1)
             Spacer(minLength: 14)
-            ThemeIconButton(systemName: "arrow.right", filled: true, help: "Next main color") { rotate(1) }
+            ThemeIconButton(systemName: "arrow.right", filled: true, help: "Next main color", size: 34) { rotate(1) }
         }
     }
 
@@ -151,22 +165,22 @@ struct PaletteCard: View {
                 HStack(spacing: 0) {
                     ForEach(Array(palette.colors.enumerated()), id: \.offset) { _, c in Rectangle().fill(Color(hex: c)) }
                 }
-                .frame(height: 100)
-                .clipShape(.rect(cornerRadius: 11))
-                .overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(theme.text.opacity(0.08)))
+                .aspectRatio(2.3, contentMode: .fit)
+                .clipShape(.rect(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(theme.text.opacity(0.08)))
                 .overlay(alignment: .topTrailing) {
                     if selected {
                         Image(systemName: "checkmark").font(.system(size: 10, weight: .bold))
-                            .frame(width: 24, height: 24)
+                            .frame(width: 20, height: 20)
                             .background(theme.highlight, in: .circle)
                             .foregroundStyle(theme.onHighlight)
-                            .padding(9)
+                            .padding(7)
                     }
                 }
                 .padding(4)
                 .overlay {
                     if selected || hover {
-                        RoundedRectangle(cornerRadius: 15).strokeBorder(selected ? theme.focus : theme.link, lineWidth: 2)
+                        RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? theme.focus : theme.link, lineWidth: 2)
                     }
                 }
                 .contentShape(.rect)
@@ -178,16 +192,16 @@ struct PaletteCard: View {
 
             HStack {
                 Text(palette.name)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(selected ? theme.textSoft : theme.textDim)
                     .lineLimit(1)
                     .onTapGesture(perform: select)
                 Spacer()
                 Button(action: favorite) {
                     Image(systemName: palette.favorite ? "heart.fill" : "heart")
-                        .font(.system(size: 14))
+                        .font(.system(size: 13))
                         .foregroundStyle(palette.favorite || heartHover ? theme.highlightInk : theme.icon)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 28, height: 28)
                         .background(heartHover ? theme.wash : .clear, in: .rect(cornerRadius: 8))
                         .contentShape(.rect)
                 }
@@ -197,7 +211,7 @@ struct PaletteCard: View {
                 .accessibilityLabel("\(palette.favorite ? "Unfavorite" : "Favorite") \(palette.name)")
             }
             .padding(.horizontal, 4)
-            .frame(minHeight: 45)
+            .frame(minHeight: 36)
         }
     }
 }
@@ -264,59 +278,6 @@ struct CollectionTools: View {
     }
 }
 
-struct KeyboardBar: View {
-    let count: Int
-    let dark: Bool
-    let shuffle: () -> Void
-    @Environment(\.theme) private var theme
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        HStack(spacing: 28) {
-            Button(action: shuffle) {
-                HStack(spacing: 10) { Key("Space", strong: true); Text("Shuffle") }
-            }
-            .buttonStyle(.plain)
-            hint(["⌘C"], "Copy CSS")
-            hint(["L"], "Lock")
-            hint(["↑", "↓"], "Navigate")
-            hint(["←", "→"], "Rotate color")
-            Spacer()
-            Text("\(count)").monospacedDigit().tracking(1.2)
-            HStack(spacing: 6) {
-                if model.appearance == .system { Image(systemName: "desktopcomputer").font(.system(size: 11)) }
-                Text(dark ? "Soft dark" : "Light")
-            }
-        }
-        .font(.system(size: 13))
-        .foregroundStyle(theme.muted)
-        .padding(.horizontal, 32)
-        .frame(height: 56)
-        .background(theme.background)
-        .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1).padding(.horizontal, 32) }
-    }
-
-    private func hint(_ keys: [String], _ label: String) -> some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 4) { ForEach(keys, id: \.self) { Key($0) } }
-            Text(label)
-        }
-    }
-
-    private struct Key: View {
-        let label: String
-        var strong = false
-        @Environment(\.theme) private var theme
-        init(_ label: String, strong: Bool = false) { self.label = label; self.strong = strong }
-        var body: some View {
-            Text(label).font(.system(size: 12))
-                .padding(.horizontal, 9).padding(.vertical, 5)
-                .background(strong ? theme.highlight : theme.wash, in: .rect(cornerRadius: 6))
-                .foregroundStyle(strong ? theme.onHighlight : theme.text)
-        }
-    }
-}
-
 struct ToastView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.theme) private var theme
@@ -329,7 +290,7 @@ struct ToastView: View {
             }
             .padding(.horizontal, 16).padding(.vertical, 11)
             .glassEffect(.regular, in: .rect(cornerRadius: 12))
-            .padding(.bottom, model.hideKeyboardGuide ? 24 : 76)
+            .padding(.bottom, 24)
             .transition(.move(edge: .bottom).combined(with: .opacity))
             .id(toast.id)
         }
