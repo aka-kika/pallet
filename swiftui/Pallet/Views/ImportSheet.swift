@@ -5,7 +5,6 @@ import UniformTypeIdentifiers
 struct ImportSheet: View {
     let request: ImportRequest
     let onSave: (Palette) -> Void
-    @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
 
     @State private var image: NSImage?
@@ -19,43 +18,40 @@ struct ImportSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Add image").font(.title2.weight(.semibold))
+            Text("New Palette from Image").font(.headline)
             if let image {
                 HStack(alignment: .top, spacing: 20) {
                     Image(nsImage: image).resizable().scaledToFit()
                         .frame(width: 170, height: 210)
-                        .background(theme.text.opacity(0.05), in: .rect(cornerRadius: 10))
+                        .background(.quaternary, in: .rect(cornerRadius: 10))
                         .clipShape(.rect(cornerRadius: 10))
                     VStack(alignment: .leading, spacing: 12) {
                         if working {
-                            HStack(spacing: 10) { ProgressView().controlSize(.small); Text("Reading the image...").foregroundStyle(theme.muted) }
+                            HStack(spacing: 10) { ProgressView().controlSize(.small); Text("Reading the image...").foregroundStyle(.secondary) }
                                 .frame(maxWidth: .infinity, minHeight: 120, alignment: .leading)
                         } else if !colors.isEmpty {
-                            Text(kindLabel).font(.callout).foregroundStyle(theme.muted)
+                            Text(kindLabel).font(.callout).foregroundStyle(.secondary)
                             swatches
                             TextField("Palette name", text: $name).textFieldStyle(.roundedBorder)
                         }
-                        if let error { Text(error).font(.callout).foregroundStyle(theme.danger) }
+                        if let error { Text(error).font(.callout).foregroundStyle(.red) }
                     }
                 }
             } else {
                 dropTarget
             }
             HStack {
-                Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction).buttonStyle(.theme)
+                Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
                 Spacer()
-                if image != nil { Button("Choose another") { choose() }.buttonStyle(.theme) }
-                Button("Save palette") { save() }
+                if image != nil { Button("Choose Another...") { choose() } }
+                Button("Save Palette") { save() }
                     .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.themeProminent)
+                    .buttonStyle(.borderedProminent)
                     .disabled(colors.count < 2 || working || name.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
-        .padding(24)
-        .frame(width: 600)
-        .background(theme.surface)
-        .foregroundStyle(theme.text)
-        .tint(theme.link)
+        .padding(20)
+        .frame(width: 580)
         .onAppear {
             image = request.image
             fileName = request.fileName
@@ -100,13 +96,13 @@ struct ImportSheet: View {
     private var dropTarget: some View {
         Button(action: choose) {
             VStack(spacing: 12) {
-                Image(systemName: "photo.badge.plus").font(.system(size: 30, weight: .light)).foregroundStyle(theme.highlightInk)
+                Image(systemName: "photo.badge.plus").font(.system(size: 30, weight: .light)).foregroundStyle(.tint)
                 Text("Drop, paste or choose an image").font(.callout)
-                Text("Palette cards, website screenshots and photos all work.").font(.caption).foregroundStyle(theme.muted)
+                Text("Palette cards, website screenshots and photos all work.").font(.caption).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, minHeight: 210)
-            .background(over ? theme.wash : theme.background, in: .rect(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(over ? theme.focus : theme.border, style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
+            .background(over ? AnyShapeStyle(.tint.opacity(0.12)) : AnyShapeStyle(.background.secondary), in: .rect(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(over ? AnyShapeStyle(.tint) : AnyShapeStyle(.separator), style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
@@ -192,25 +188,22 @@ struct ImportSheet: View {
 
 struct ExportSheet: View {
     let palette: Palette
-    @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Export \(palette.name)").font(.title2.weight(.semibold))
-            Text("Every theme export includes light and soft-dark modes.").font(.callout).foregroundStyle(theme.muted)
+            Text("Export \u{201C}\(palette.name)\u{201D}").font(.headline)
+            Text("Every theme export includes light and soft-dark modes.").font(.callout).foregroundStyle(.secondary)
             VStack(spacing: 10) {
                 row("CSS variables", "css", UTType(filenameExtension: "css") ?? .plainText) { ThemeExport.css(palette) }
                 row("Markdown theme", "md", UTType(filenameExtension: "md") ?? .plainText) { ThemeExport.markdown(palette) }
                 row("Palette JSON", "json", .json) { ThemeExport.json(palette) }
             }
             .padding(.top, 4)
-            HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.cancelAction).buttonStyle(.theme) }
+            HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.cancelAction) }
         }
-        .padding(24)
-        .frame(width: 420)
-        .background(theme.surface)
-        .foregroundStyle(theme.text)
+        .padding(20)
+        .frame(width: 400)
     }
 
     private func row(_ label: String, _ ext: String, _ type: UTType, _ content: @escaping () -> String) -> some View {
@@ -222,6 +215,6 @@ struct ExportSheet: View {
         } label: {
             Label(label, systemImage: "square.and.arrow.down").frame(maxWidth: .infinity, minHeight: 30)
         }
-        .buttonStyle(.theme)
+        .buttonStyle(.bordered)
     }
 }

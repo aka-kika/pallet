@@ -84,9 +84,18 @@ final class PaletteStore {
         }.map(\.element)
     }
 
-    func put(_ p: Palette) {
+    func isBuiltIn(_ id: String) -> Bool { builtins.contains { $0.id == id } }
+
+    /// Add or replace a palette. `index` puts a restored palette back where it was.
+    func put(_ p: Palette, at index: Int? = nil) {
         guard p.isValid else { return }
-        if let i = palettes.firstIndex(where: { $0.id == p.id }) { palettes[i] = p } else { palettes.append(p) }
+        if let i = palettes.firstIndex(where: { $0.id == p.id }) {
+            palettes[i] = p
+        } else if let index, index <= palettes.count {
+            palettes.insert(p, at: index)
+        } else {
+            palettes.append(p)
+        }
         saved = saved.filter { $0.id != p.id } + [p]
         hidden.removeAll { $0 == p.id }
         write()

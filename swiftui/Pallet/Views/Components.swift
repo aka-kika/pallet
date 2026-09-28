@@ -1,24 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// PALLET / by KIKA. The mark and "by KIKA" recolor with the palette.
-struct Brand: View {
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 10) {
-            Image("PalettMark").resizable().frame(width: 24, height: 24).foregroundStyle(theme.highlightInk)
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("PALLET").tracking(1.6).foregroundStyle(theme.uiDim)
-                Text("/ by KIKA").tracking(0.8).fontWeight(.medium).foregroundStyle(theme.highlightInk)
-            }
-            .font(.system(size: 19, weight: .semibold))
-        }
-        .padding(.horizontal, 6)
-        .fixedSize()
-    }
-}
-
 /// The big strip of the selected palette. Click a color to make it the main
 /// color; click its hex chip to copy it.
 struct SwatchStrip: View {
@@ -26,6 +8,7 @@ struct SwatchStrip: View {
     let onMain: (Int) -> Void
     let onCopy: (String) -> Void
     @Environment(\.theme) private var theme
+    @Environment(\.colorSchemeContrast) private var contrast
     @State private var hovered: Int?
 
     private func weight(_ i: Int) -> Double {
@@ -44,6 +27,9 @@ struct SwatchStrip: View {
                         Rectangle().fill(Color(hex: color))
                             .contentShape(.rect)
                             .onTapGesture { onMain(i) }
+                            .accessibilityLabel(i == palette.main ? "\(color), main color" : "Make \(color) the main color")
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityAction { onMain(i) }
                         // Full label when it fits, then a tighter one, then only the dot:
                         // never a wrapped hex code.
                         ViewThatFits(in: .horizontal) {
@@ -57,14 +43,13 @@ struct SwatchStrip: View {
                     .frame(width: geo.size.width * weight(i) / total)
                     .onHover { hovered = $0 ? i : (hovered == i ? nil : hovered) }
                     .accessibilityElement(children: .contain)
-                    .accessibilityLabel("Make \(color) primary")
                 }
             }
             .animation(.spring(response: 0.32, dampingFraction: 0.9), value: hovered)
             .animation(.spring(response: 0.32, dampingFraction: 0.9), value: palette.main)
         }
         .clipShape(.rect(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(theme.text.opacity(0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(theme.text.opacity(contrast == .increased ? 0.4 : 0.06)))
     }
 
     @ViewBuilder
@@ -156,6 +141,7 @@ struct PaletteCard: View {
     let select: () -> Void
     let favorite: () -> Void
     @Environment(\.theme) private var theme
+    @Environment(\.colorSchemeContrast) private var contrast
     @State private var hover = false
     @State private var heartHover = false
 
@@ -167,7 +153,7 @@ struct PaletteCard: View {
                 }
                 .aspectRatio(2.3, contentMode: .fit)
                 .clipShape(.rect(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(theme.text.opacity(0.08)))
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(theme.text.opacity(contrast == .increased ? 0.4 : 0.08)))
                 .overlay(alignment: .topTrailing) {
                     if selected {
                         Image(systemName: "checkmark").font(.system(size: 10, weight: .bold))
@@ -187,7 +173,8 @@ struct PaletteCard: View {
             }
             .buttonStyle(.plain)
             .onHover { hover = $0 }
-            .accessibilityLabel("Select \(palette.name)")
+            .accessibilityLabel(palette.name)
+            .accessibilityValue("\(palette.colors.count) colors")
             .accessibilityAddTraits(selected ? .isSelected : [])
 
             HStack {
@@ -212,68 +199,6 @@ struct PaletteCard: View {
             }
             .padding(.horizontal, 4)
             .frame(minHeight: 36)
-        }
-    }
-}
-
-struct EmptyFavorites: View {
-    let showAll: () -> Void
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "heart").font(.system(size: 22)).foregroundStyle(theme.muted)
-            Text("No favorites yet").font(.headline)
-            Text("Tap a heart or right-click any palette to keep it here.").font(.callout).foregroundStyle(theme.muted)
-            Button("View collection", action: showAll).buttonStyle(.theme).padding(.top, 8)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 70)
-    }
-}
-
-/// Export or import the whole collection as JSON (same file as the web app).
-struct CollectionTools: View {
-    @Environment(PaletteStore.self) private var store
-    @Environment(AppModel.self) private var model
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        HStack(spacing: 20) {
-            Text("Drop or paste an image anywhere. Right-click a card for more.")
-                .font(.system(size: 12)).foregroundStyle(theme.muted)
-            Spacer()
-            Button("Export collection", action: exportAll)
-            Button("Import collection", action: importAll)
-        }
-        .buttonStyle(.plain)
-        .font(.system(size: 13))
-        .foregroundStyle(theme.link)
-    }
-
-    private func exportAll() {
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = "palette-collection.json"
-        panel.allowedContentTypes = [.json]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        let text = ThemeExport.collection(store.palettes)
-        do { try text.write(to: url, atomically: true, encoding: .utf8); model.show("Collection exported") } catch { model.show("Could not export the collection.") }
-    }
-
-    private func importAll() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.json]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        struct File: Decodable { var palettes: [Palette] }
-        do {
-            let data = try Data(contentsOf: url)
-            guard data.count < 2_000_000 else { throw CocoaError(.fileReadTooLarge) }
-            let list = try JSONDecoder().decode(File.self, from: data).palettes
-            guard list.count <= 1000, list.allSatisfy(\.isValid) else { throw CocoaError(.fileReadCorruptFile) }
-            list.forEach(store.put)
-            model.show("\(list.count) palettes imported")
-        } catch {
-            model.show("Choose a valid Palette collection JSON file.")
         }
     }
 }
@@ -311,32 +236,4 @@ struct DropOverlay: View {
         .padding(12)
         .allowsHitTesting(false)
     }
-}
-
-/// Buttons in theme colors: prominent = main color fill with its readable ink,
-/// plain = text on a bordered surface with the wash on hover.
-struct ThemeButtonStyle: ButtonStyle {
-    var prominent = false
-    @Environment(\.theme) private var theme
-    @Environment(\.isEnabled) private var enabled
-    @State private var hover = false
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 13, weight: .medium))
-            .padding(.horizontal, 14)
-            .frame(minHeight: 30)
-            .foregroundStyle(prominent ? theme.onAccent : theme.text)
-            .background(prominent ? (hover ? theme.color("accent-hover") : theme.accent) : (hover ? theme.wash : .clear), in: .rect(cornerRadius: 8))
-            .overlay { if !prominent { RoundedRectangle(cornerRadius: 8).strokeBorder(theme.border) } }
-            .opacity(enabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .contentShape(.rect)
-            .onHover { hover = $0 && enabled }
-    }
-}
-
-extension ButtonStyle where Self == ThemeButtonStyle {
-    static var theme: ThemeButtonStyle { ThemeButtonStyle() }
-    static var themeProminent: ThemeButtonStyle { ThemeButtonStyle(prominent: true) }
 }

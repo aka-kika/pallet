@@ -23,6 +23,11 @@ The native Mac version of Pallet. The Electron app in `desktop/` stays the shipp
 - Photos: main colors, with a boost for colorful ones.
 - Names: title in the image, then the file name, then Apple Intelligence (Foundation Models), then plain color words.
 
+## Layout (Apple HIG)
+
+- System frame: sidebar (All, Favorites, My Palettes, Starter), toolbar with search, Share and New, standard menus, Undo for every change.
+- Pallet content: the palette-colored canvas, swatch strip, arrows and cards.
+
 ## Keys
 
-Space shuffle, Left/Right main color, Up/Down palettes, L lock background, Cmd+C copy CSS, Cmd+V paste an image, Cmd+O add image, Cmd+E export.
+Listed in Settings > Keyboard. Space shuffle, Left/Right or Cmd+[ ] main color, Up/Down palettes, L lock, Cmd+C copy CSS, Cmd+V paste an image, Cmd+D favorite, Cmd+O new from image, Cmd+E export, Cmd+Delete delete, Cmd+Z undo, Cmd+1 to 4 sidebar.

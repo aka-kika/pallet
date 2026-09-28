@@ -2,9 +2,10 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
-    static let keys = [("Space", "Shuffle"), ("\u{2190} \u{2192}", "Change main color"), ("\u{2191} \u{2193}", "Next or previous palette"),
-                       ("L", "Lock background"), ("\u{2318}C", "Copy CSS"), ("\u{2318}V", "Paste an image"),
-                       ("\u{2318}O", "Add image"), ("\u{2318}E", "Export theme")]
+    static let keys = [("Space  or  \u{2318}R", "Shuffle"), ("\u{2190} \u{2192}  or  \u{2318}[ \u{2318}]", "Change main color"), ("\u{2191} \u{2193}", "Next or previous palette"),
+                       ("L  or  \u{2318}L", "Lock background"), ("\u{2318}C", "Copy CSS"), ("\u{2318}V", "Paste an image"),
+                       ("\u{2318}D", "Add to Favorites"), ("\u{2318}O", "New palette from image"),
+                       ("\u{2318}E", "Export theme"), ("\u{2318}\u{232B}", "Delete palette"), ("\u{2318}Z", "Undo"), ("\u{2318}1 to \u{2318}4", "Sidebar sections")]
     @State private var lockField = ""
 
     var body: some View {
@@ -18,7 +19,7 @@ struct SettingsView: View {
             .pickerStyle(.radioGroup)
             Toggle("Show Shuffle button", isOn: $model.showShuffleButton)
             Toggle("Add dropped images right away", isOn: $model.autoImportOnDrop)
-            Text("Skips the Add image dialog. The Add image button still opens it.")
+            Text("Skips the New Palette window. The New button still opens it.")
                 .font(.caption).foregroundStyle(.secondary)
             TextField("Background lock", text: $lockField, prompt: Text("#F4F1EA"))
                 .onSubmit {
