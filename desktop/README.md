@@ -1,4 +1,6 @@
-# Desktop implementation
+# Desktop implementation (retired)
+
+Retired on 2026-10-01: the Mac app is now the SwiftUI app in `swiftui/` (see [docs/mac.md](../docs/mac.md)). This Electron shell (Pallet 1.1.1) is kept for reference.
 
 Electron 44.4.1 wraps the React UI. `main.cjs` owns the tray, shortcut, clipboard, and sandboxed windows. `preload.cjs` exposes a small typed bridge (`lib/desktop.ts`). `server.cjs` serves the UI and persists palettes through `store.cjs`. Color extraction is local. No cloud account is required.
 

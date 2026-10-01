@@ -1,6 +1,6 @@
 # Pallet for Mac (SwiftUI)
 
-The native Mac version of Pallet. The Electron app in `desktop/` stays the shipping app until this one matches it.
+The Mac app. It replaced the Electron app in `desktop/` on 2026-10-01 (installed as /Applications/Pallet.app, bundle id `com.akakika.pallet`, signed with Developer ID).
 
 ## Build and run
 
@@ -11,7 +11,7 @@ The native Mac version of Pallet. The Electron app in `desktop/` stays the shipp
 ## Shared with the web app
 
 - Built-in palettes: `shared/builtin-palettes.json` (the web app imports the same file).
-- Your collection: `~/Library/Application Support/Palette/palettes.json` and `hidden.json`, same format and rules as `desktop/store.cjs`. Changes from either app show up in the other.
+- Your collection: `~/Library/Application Support/Palette/palettes.json` and `hidden.json`, the format the web app and the old Electron app use. `collections.json` is Mac only. Unreadable files are copied aside and never overwritten; unknown entries are kept. Code: `Pallet/Model/Palette.swift`.
 - Theme colors: `Pallet/Model/Theme.swift` is a line-by-line port of `lib/palettes.ts`. Rules: `docs/THEME-RULES.md`. Change both together.
 
 ## Image extraction
@@ -35,6 +35,14 @@ The native Mac version of Pallet. The Electron app in `desktop/` stays the shipp
 - Settings > Capture: show in Dock, menu bar or both; open at login; save right away; copy CSS after a capture.
 - Code: `Pallet/MenuBar/` (AppKit status item and popover, Carbon hot key, `screencapture -i`).
 
+## Code map
+
+- `PalletApp.swift`: app, `AppModel` (UI state and preferences), `PaletteActions` (every change, with undo), menus.
+- `Model/`: `Palette.swift` (store), `Theme.swift` (theme math, exports), `Collections.swift` (collections, color slider), `AppShortcuts.swift` (recordable shortcuts), `Naming.swift`.
+- `Views/`: `ContentView.swift` (sidebar, canvas, toolbar), `Components.swift`, `ImportSheet.swift` (new palette, export), `SettingsView.swift`.
+- `MenuBar/`: status item and panel, Carbon hot keys, screen capture.
+- `Extraction/PaletteExtractor.swift`: Vision text reading and flat-region analysis.
+
 ## Keys
 
-Listed in Settings > Keyboard. Space shuffle, Left/Right or Cmd+[ ] main color, Up/Down palettes, L lock, Cmd+C copy CSS, Cmd+V paste an image, Cmd+D favorite, Cmd+O new from image, Cmd+E export, Cmd+Delete delete, Cmd+Z undo, Cmd+1 to 4 sidebar.
+All in Settings > Keyboard, where the menu and global ones can be recorded. Defaults: Shift-Cmd-P capture area and Option-Shift-Cmd-P menu bar panel (from any app); Space shuffle, Left/Right or Cmd-[ ] main color, Up/Down palettes, L or Cmd-L lock, Cmd-C copy CSS, Cmd-V paste an image, Cmd-D favorite, Shift-Cmd-D light or soft dark, Cmd-O new from image, Shift-Cmd-N new collection, Cmd-E export, Cmd-Delete delete, Cmd-Z undo, Cmd-1 to 4 library sections.

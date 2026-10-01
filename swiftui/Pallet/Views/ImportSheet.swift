@@ -1,7 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Add image: drop, paste or choose an image, check the colors found, name it, save.
+/// New Palette from Image: drop, paste or choose an image, check the colors
+/// found, name it, save.
 struct ImportSheet: View {
     let request: ImportRequest
     let onSave: (Palette) -> Void
@@ -15,6 +16,8 @@ struct ImportSheet: View {
     @State private var working = false
     @State private var error: String?
     @State private var over = false
+    /// The newest reading; an older, slower one never overwrites it.
+    @State private var runID = UUID()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -117,19 +120,7 @@ struct ImportSheet: View {
     }
 
     private func load(_ providers: [NSItemProvider]) {
-        guard let provider = providers.first else { return }
-        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                guard let url, let img = NSImage(contentsOf: url) else { return }
-                let base = url.deletingPathExtension().lastPathComponent
-                Task { @MainActor in take(img, name: base) }
-            }
-        } else {
-            _ = provider.loadObject(ofClass: NSImage.self) { object, _ in
-                guard let img = object as? NSImage else { return }
-                Task { @MainActor in take(img, name: nil) }
-            }
-        }
+        loadDroppedImage(providers, failed: { error = "That file is not an image." }) { image, name in take(image, name: name) }
     }
 
     private func take(_ img: NSImage, name: String?) {
@@ -142,13 +133,18 @@ struct ImportSheet: View {
         guard let image else { return }
         working = true
         error = nil
+        let token = UUID()
+        runID = token
         Task {
             do {
                 let result = try await ImportSheet.extract(image)
+                let title = await Naming.name(for: result, fileName: fileName)
+                guard runID == token else { return }
                 colors = result.colors
                 kind = result.kind
-                name = await Naming.name(for: result, fileName: fileName)
+                name = title
             } catch {
+                guard runID == token else { return }
                 self.error = error.localizedDescription
                 colors = []
             }
@@ -188,6 +184,7 @@ struct ImportSheet: View {
 
 struct ExportSheet: View {
     let palette: Palette
+    @State private var failure: String?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -200,6 +197,7 @@ struct ExportSheet: View {
                 row("Palette JSON", "json", .json) { ThemeExport.json(palette) }
             }
             .padding(.top, 4)
+            if let failure { Text(failure).font(.callout).foregroundStyle(.red) }
             HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.cancelAction) }
         }
         .padding(20)
@@ -209,9 +207,11 @@ struct ExportSheet: View {
     private func row(_ label: String, _ ext: String, _ type: UTType, _ content: @escaping () -> String) -> some View {
         Button {
             let panel = NSSavePanel()
-            panel.nameFieldStringValue = palette.name.lowercased().replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression) + "." + ext
+            let base = palette.name.lowercased().replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression).trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+            panel.nameFieldStringValue = (base.isEmpty ? "palette" : base) + "." + ext
             panel.allowedContentTypes = [type]
-            if panel.runModal() == .OK, let url = panel.url { try? content().write(to: url, atomically: true, encoding: .utf8) }
+            guard panel.runModal() == .OK, let url = panel.url else { return }
+            do { try content().write(to: url, atomically: true, encoding: .utf8); failure = nil } catch { failure = "Could not save \(url.lastPathComponent)." }
         } label: {
             Label(label, systemImage: "square.and.arrow.down").frame(maxWidth: .infinity, minHeight: 30)
         }

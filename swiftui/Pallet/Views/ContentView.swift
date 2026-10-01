@@ -22,6 +22,10 @@ struct ContentView: View {
         .preferredColorScheme(model.colorScheme)
         .onAppear { actions.undoManager = undoManager }
         .onChange(of: undoManager) { actions.undoManager = undoManager }
+        // A collection removed elsewhere (another Mac, a restore) leaves nothing selected.
+        .onChange(of: store.collections, initial: true) {
+            if let id = model.collectionID, !store.collections.contains(where: { $0.id == id }) { model.sidebar = .library(.all) }
+        }
         .task { await Task.detached(priority: .utility) { PaletteExtractor.warmUp() }.value }
         .sheet(item: $model.importing) { request in
             ImportSheet(request: request) { actions.add($0) }
@@ -177,7 +181,7 @@ struct Canvas: View {
         actions.active ?? Palette(id: "empty", name: "Pallet", colors: ["#FFFFFF", "#111318"], main: 0, favorite: false, source: "")
     }
     private var dark: Bool { colorScheme == .dark }
-    private var theme: Theme { Theme(active, dark: dark).locked(to: model.bgLock, dark: dark) }
+    private var theme: Theme { Theme.cached(active, dark: dark, lock: model.bgLock) }
     /// Cards grow with the window; a column is added only when they get roomy.
     private var columns: Int { max(2, min(6, Int((width - 40 + 18) / (170 + 18)))) }
 
@@ -340,23 +344,7 @@ struct Canvas: View {
     }
 
     private func drop(_ providers: [NSItemProvider]) -> Bool {
-        guard let provider = providers.first else { return false }
-        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                guard let url, let image = NSImage(contentsOf: url) else { return }
-                let name = url.deletingPathExtension().lastPathComponent
-                Task { @MainActor in receive(image, name: name) }
-            }
-            return true
-        }
-        if provider.canLoadObject(ofClass: NSImage.self) {
-            _ = provider.loadObject(ofClass: NSImage.self) { object, _ in
-                guard let image = object as? NSImage else { return }
-                Task { @MainActor in receive(image, name: nil) }
-            }
-            return true
-        }
-        return false
+        loadDroppedImage(providers, failed: { model.show("That file is not an image.") }) { image, name in receive(image, name: name) }
     }
 
     private func receive(_ image: NSImage, name: String?) {

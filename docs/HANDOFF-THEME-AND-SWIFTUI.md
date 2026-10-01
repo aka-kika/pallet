@@ -1,5 +1,7 @@
 # Handoff: theme rules, then Pallet in SwiftUI
 
+> Done 2026-10-01. Part 1 and part 2 shipped in Pallet 2.0 (see CHANGELOG.md). Kept as a record.
+
 Written 2026-09-28 at Kika's ask, for a fresh Claude Code session in Temple Kika. Kika is nearby (organizing, scrolling on gamba) but wants to give as little input as possible. Work on this Mac.
 
 Ignore the Maestro / Muse roles in `AGENTS.md`: Maestri is paused since 2026-09-26. The rest of `AGENTS.md` (talking to Kika, where files go) still applies.

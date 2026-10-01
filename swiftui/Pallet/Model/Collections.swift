@@ -23,9 +23,16 @@ nonisolated enum ColorFilter {
         isNeutral(position) ? oklch(lightness(at: position), 0, 0) : oklch(0.72, 0.13, hue(at: position))
     }
 
+    @MainActor private static var lchMemo: [String: (l: Double, c: Double, h: Double)] = [:]
+
     /// Above zero means the palette has a color near this position; higher is closer.
-    static func score(_ p: Palette, at position: Double) -> Double {
-        let lch = p.colors.map(toOKLCH)
+    @MainActor static func score(_ p: Palette, at position: Double) -> Double {
+        let lch = p.colors.map { hex in
+            if let v = lchMemo[hex] { return v }
+            let v = toOKLCH(hex)
+            lchMemo[hex] = v
+            return v
+        }
         if isNeutral(position) {
             let target = lightness(at: position)
             return lch.filter { $0.c < 0.04 }.map { max(0, 1 - abs($0.l - target) / 0.2) }.max() ?? 0

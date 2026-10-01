@@ -98,7 +98,6 @@ nonisolated struct Theme: Equatable, Sendable {
     var border: Color { color("border") }
     var textSoft: Color { color("text-soft") }
     var textDim: Color { color("text-dim") }
-    var uiDim: Color { color("ui-dim") }
     var icon: Color { color("icon") }
     var link: Color { color("link") }
     var focus: Color { color("focus") }
@@ -199,6 +198,21 @@ nonisolated struct Theme: Equatable, Sendable {
         for (k, v) in Theme.roles(bg: bg, surface: surface, raised: raised, ink0: dark ? "#F5F5F7" : "#111318", accent: self["accent"], highlight: self["highlight"], dark: dark) {
             t[k] = v
         }
+        return t
+    }
+}
+
+extension Theme {
+    @MainActor private static var memo: [String: Theme] = [:]
+
+    /// The theme for the window, remembered: views read it many times per
+    /// frame, and building one runs a lot of contrast math.
+    @MainActor static func cached(_ p: Palette, dark: Bool, lock: String?) -> Theme {
+        let key = p.colors.joined() + "\(p.main)\(dark)" + (lock ?? "")
+        if let t = memo[key] { return t }
+        if memo.count > 400 { memo.removeAll() }
+        let t = Theme(p, dark: dark).locked(to: lock, dark: dark)
+        memo[key] = t
         return t
     }
 }

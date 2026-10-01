@@ -81,14 +81,17 @@ nonisolated struct KeyCombo: Codable, Equatable, Sendable {
         let names: [UInt16: String] = [51: "delete", 36: "return", 48: "tab", 49: "space", 123: "left", 124: "right", 126: "up", 125: "down"]
         if let name = names[event.keyCode] {
             key = name
-        } else if let c = event.charactersIgnoringModifiers?.lowercased().first, !c.isWhitespace {
+        } else if let c = event.characters(byApplyingModifiers: [])?.lowercased().first, !c.isWhitespace {
+            // The unshifted key, so Shift-Cmd-1 is stored as "1" with Shift, not "!".
             key = String(c)
         } else {
             return nil
         }
-        // The standard Edit keys and Quit, Close, Hide stay theirs.
-        let reserved: Set<String> = ["q", "w", "h", "m", "x", "c", "v", "a", "z", ","]
+        // Standard keys (Quit, Close, Hide, Edit, Undo, Settings) and Pallet's
+        // fixed ones (Cmd-1 to 4, Cmd-Delete) stay theirs.
+        let reserved: Set<String> = ["q", "w", "h", "m", "x", "c", "v", "a", "z", ",", "1", "2", "3", "4", "delete"]
         if m == .command && reserved.contains(key) { return nil }
+        if m == [.command, .shift] && key == "z" { return nil }   // Redo
         modifiers = m.rawValue
     }
 }

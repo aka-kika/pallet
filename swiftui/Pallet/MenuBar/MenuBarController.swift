@@ -32,6 +32,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     /// False when another app already owns the capture shortcut.
     var shortcutAvailable = true
     @ObservationIgnored private var askedForPermission = false
+    @ObservationIgnored private var takeToken = UUID()
 
     @ObservationIgnored let store: PaletteStore
     @ObservationIgnored let model: AppModel
@@ -179,19 +180,35 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     /// window when the menu bar icon is hidden).
     func take(_ image: NSImage, name: String?) {
         guard item != nil else {
-            model.importing = ImportRequest(image: image, fileName: name)
+            if model.autoImportOnDrop {
+                Task {
+                    do {
+                        let p = try await ImportSheet.quickPalette(from: image, fileName: name)
+                        actions.add(p)
+                        if model.copyCSSAfterCapture { copyToPasteboard(ThemeExport.css(p)) }
+                    } catch {
+                        model.show(error.localizedDescription)
+                    }
+                }
+            } else {
+                model.importing = ImportRequest(image: image, fileName: name)
+            }
             openMain()
             return
         }
         phase = .working
         showPanel()
+        let token = UUID()
+        takeToken = token
         Task {
             do {
                 let result = try await ImportSheet.extract(image)
                 let title = await Naming.name(for: result, fileName: name)
+                guard takeToken == token else { return }   // a newer image came in meanwhile
                 phase = .result(CaptureResult(image: image, colors: result.colors, name: title, kind: result.kind, saved: nil))
                 if model.autoImportOnDrop { save() }
             } catch {
+                guard takeToken == token else { return }
                 phase = .failed(error.localizedDescription)
             }
         }

@@ -98,18 +98,8 @@ struct MenuBarPanel: View {
     }
 
     private func load(_ providers: [NSItemProvider]) {
-        guard let provider = providers.first else { return }
-        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                guard let url, let image = NSImage(contentsOf: url) else { return }
-                let name = url.deletingPathExtension().lastPathComponent
-                Task { @MainActor in controller.take(image, name: name) }
-            }
-        } else {
-            _ = provider.loadObject(ofClass: NSImage.self) { object, _ in
-                guard let image = object as? NSImage else { return }
-                Task { @MainActor in controller.take(image, name: nil) }
-            }
+        loadDroppedImage(providers, failed: { controller.phase = .failed("That file is not an image.") }) { image, name in
+            controller.take(image, name: name)
         }
     }
 

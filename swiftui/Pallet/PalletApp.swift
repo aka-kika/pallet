@@ -67,7 +67,7 @@ final class AppModel {
     var showShuffleButton: Bool { didSet { save("showShuffleButton", showShuffleButton) } }
     var autoImportOnDrop: Bool { didSet { save("autoImportOnDrop", autoImportOnDrop) } }
 
-    /// Where Pallet shows up. The Electron app called this "Show Pallet in".
+    /// Where Pallet shows up: Dock and menu bar, Dock only, or menu bar only.
     enum Presence: String, CaseIterable { case both, dock, menuBar }
     var presence: Presence { didSet { save("presence", presence.rawValue); MenuBarController.shared?.apply() } }
     var captureShortcut: Shortcut? {
@@ -238,11 +238,16 @@ final class PaletteActions {
     // MARK: Undoable changes
 
     /// Replace (or with nil remove) one palette and register the way back.
-    private func commit(_ id: String, to new: Palette?, _ name: String) {
+    @discardableResult
+    private func commit(_ id: String, to new: Palette?, _ name: String) -> Bool {
         let old = store.palettes.first { $0.id == id }
         let index = store.palettes.firstIndex { $0.id == id }
         let selected = model.selectedID
-        if let new { store.put(new, at: index) } else { store.remove(id) }
+        if let new {
+            guard store.put(new, at: index) else { return false }
+        } else {
+            store.remove(id)
+        }
         undoManager?.registerUndo(withTarget: store) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -250,13 +255,14 @@ final class PaletteActions {
             }
         }
         undoManager?.setActionName(name)
+        return true
     }
 
     private func restore(_ id: String, to old: Palette?, at index: Int?, redo new: Palette?, selected: String, _ name: String) {
         if let old { store.put(old, at: index) } else { store.remove(id) }
         model.selectedID = store.palettes.contains { $0.id == selected } ? selected : (store.palettes.first?.id ?? selected)
         undoManager?.registerUndo(withTarget: store) { [weak self] _ in
-            MainActor.assumeIsolated { self?.commit(id, to: new, name) }
+            MainActor.assumeIsolated { _ = self?.commit(id, to: new, name) }
         }
         undoManager?.setActionName(name)
     }
@@ -280,7 +286,7 @@ final class PaletteActions {
     }
 
     func add(_ p: Palette) {
-        commit(p.id, to: p, "Add Palette")
+        guard commit(p.id, to: p, "Add Palette") else { model.show("This palette could not be saved.", detail: "It needs a name and at least 2 colors."); return }
         model.selectedID = p.id
         if let c = currentCollection {
             addToCollection(p.id, c.id)
@@ -418,19 +424,43 @@ final class PaletteActions {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.json]
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        struct File: Decodable { var palettes: [Palette] }
         do {
             let data = try Data(contentsOf: url)
-            guard data.count < 2_000_000 else { throw CocoaError(.fileReadTooLarge) }
-            let list = try JSONDecoder().decode(File.self, from: data).palettes
-            guard list.count <= 1000, list.allSatisfy(\.isValid) else { throw CocoaError(.fileReadCorruptFile) }
-            undoManager?.beginUndoGrouping()
-            list.forEach { commit($0.id, to: $0, "Import Collection") }
-            undoManager?.endUndoGrouping()
-            model.show("\(list.count) palettes imported")
+            guard data.count < 2_000_000,
+                  let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let items = root["palettes"] as? [Any], items.count <= 1000 else { throw CocoaError(.fileReadCorruptFile) }
+            // Read what can be read; one odd entry doesn't spoil the file.
+            let list = items.compactMap { item in
+                (try? JSONSerialization.data(withJSONObject: item)).flatMap { try? JSONDecoder().decode(Palette.self, from: $0) }
+            }.filter(\.isValid)
+            guard !list.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
+            let before = store.snapshot()
+            let (added, replaced) = store.put(contentsOf: list)
+            registerSnapshotUndo(before, "Import Collection")
+            let skipped = items.count - list.count
+            var detail = replaced > 0 ? "\(replaced) replaced palettes with the same id." : ""
+            if skipped > 0 { detail += (detail.isEmpty ? "" : " ") + "\(skipped) could not be read." }
+            model.show("\(added + replaced) palettes imported", detail: detail.isEmpty ? nil : detail + " Edit > Undo reverts it.")
         } catch {
             model.show("Choose a valid Palette collection JSON file.")
         }
+    }
+
+    /// Undo for a batch change: put the whole collection back as it was.
+    private func registerSnapshotUndo(_ before: PaletteStore.Snapshot, _ name: String) {
+        let after = store.snapshot()
+        undoManager?.registerUndo(withTarget: store) { [weak self] store in
+            MainActor.assumeIsolated {
+                store.restore(before)
+                self?.undoManager?.registerUndo(withTarget: store) { [weak self] store in
+                    MainActor.assumeIsolated {
+                        store.restore(after)
+                        if let self { self.registerSnapshotUndo(before, name) }
+                    }
+                }
+            }
+        }
+        undoManager?.setActionName(name)
     }
 }
 
@@ -484,7 +514,10 @@ struct PalletCommands: Commands {
             Button("Select All") { NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) }
                 .keyboardShortcut("a")
             Divider()
-            Button("Delete Palette...") { model.pendingDelete = actions.active }
+            // Cmd-Delete in a text field deletes to the start of the line, as usual.
+            Button("Delete Palette...") {
+                if editingText { NSApp.sendAction(#selector(NSResponder.deleteToBeginningOfLine(_:)), to: nil, from: nil) } else { model.pendingDelete = actions.active }
+            }
                 .keyboardShortcut(.delete)
                 .disabled(store.palettes.count <= 1)
         }
@@ -537,6 +570,28 @@ func pastedImage(_ pb: NSPasteboard) -> (NSImage, String?)? {
         return nil   // files, but none of them an image: never fall back to their icons
     }
     return NSImage(pasteboard: pb).map { ($0, nil) }
+}
+
+/// The image in a drop: a file (named after the file) or image data. Calls
+/// `failed` when the drop holds files but no image.
+@discardableResult
+func loadDroppedImage(_ providers: [NSItemProvider], failed: @escaping @MainActor @Sendable () -> Void = {},
+                      _ done: @escaping @MainActor @Sendable (NSImage, String?) -> Void) -> Bool {
+    guard let provider = providers.first else { return false }
+    if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+        _ = provider.loadObject(ofClass: URL.self) { url, _ in
+            guard let url, let image = NSImage(contentsOf: url) else { Task { @MainActor in failed() }; return }
+            let name = url.deletingPathExtension().lastPathComponent
+            Task { @MainActor in done(image, name) }
+        }
+        return true
+    }
+    guard provider.canLoadObject(ofClass: NSImage.self) else { return false }
+    _ = provider.loadObject(ofClass: NSImage.self) { object, _ in
+        guard let image = object as? NSImage else { Task { @MainActor in failed() }; return }
+        Task { @MainActor in done(image, nil) }
+    }
+    return true
 }
 
 func copyToPasteboard(_ text: String) {

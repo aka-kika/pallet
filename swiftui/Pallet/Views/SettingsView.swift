@@ -62,7 +62,10 @@ struct CaptureSettings: View {
                 Text("Menu bar only").tag(AppModel.Presence.menuBar)
             }
             Toggle("Open at login", isOn: $openAtLogin)
-                .onChange(of: openAtLogin) { MenuBarController.shared?.launchAtLogin = openAtLogin }
+                .onChange(of: openAtLogin) {
+                    MenuBarController.shared?.launchAtLogin = openAtLogin
+                    openAtLogin = MenuBarController.shared?.launchAtLogin ?? false   // shows the real state if macOS refused
+                }
             Section {
                 Toggle("Save new palettes right away", isOn: $model.autoImportOnDrop)
                 Toggle("Copy CSS after saving a capture", isOn: $model.copyCSSAfterCapture)

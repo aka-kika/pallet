@@ -42,3 +42,9 @@ next-env.d.ts
 /desktop/staging/
 /desktop/release/
 /desktop/runtime/node_modules/
+
+# Xcode builds
+/build/
+swiftui/build/
+DerivedData/
+xcuserdata/

@@ -28,8 +28,19 @@ nonisolated enum Naming {
             || n.range(of: #"^\d{4}.\d{2}.\d{2}"#, options: .regularExpression) != nil
     }
 
-    /// On-device model, when Apple Intelligence is on. Nil otherwise.
+    /// On-device model, when Apple Intelligence is on. Nil otherwise, or when
+    /// it takes longer than a few seconds.
     static func suggest(_ colors: [String]) async -> String? {
+        await withTaskGroup(of: String?.self) { group in
+            group.addTask { await ask(colors) }
+            group.addTask { try? await Task.sleep(for: .seconds(6)); return nil }
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first
+        }
+    }
+
+    private static func ask(_ colors: [String]) async -> String? {
         #if canImport(FoundationModels)
         guard case .available = SystemLanguageModel.default.availability else { return nil }
         do {

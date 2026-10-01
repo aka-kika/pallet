@@ -1,49 +1,43 @@
 # Pallet for Mac
 
-Pallet is a menu-bar color collection. Drop an image, extract a palette on this device, and copy light and soft-dark CSS.
-
-The build is unsigned and not notarized.
+The native SwiftUI app in `swiftui/`. It replaced the Electron app (`desktop/`, version 1.1.1) on 2026-10-01.
 
 ## Build
 
-1. Install **Node.js 24 LTS** from https://nodejs.org.
-2. From the repo root, double-click **Setup Mac.command**, or run:
+1. Xcode 27.2 or newer, macOS 26 or newer. The project uses Xcode's JSON project format (`swiftui/Pallet.xcodeproj/project.xcproj`).
+2. From the repo root:
 
 ```sh
-npx --yes pnpm@11.25.0 install --frozen-lockfile
-node desktop/build.mjs
-npm ci --prefix desktop/runtime
-node desktop/package.mjs
+xcodebuild -project swiftui/Pallet.xcodeproj -scheme Pallet -configuration Release -derivedDataPath build/dd build
 ```
 
-3. Move **Pallet.app** from `desktop/release/Pallet-darwin-<arch>/` into Applications. For an unsigned app, Control-click then Open, or use Privacy & Security → Open Anyway.
+3. Move `build/dd/Build/Products/Release/Pallet.app` into Applications.
 
-Data lives in `~/Library/Application Support/Palette/`. The local server binds to `127.0.0.1:45487`.
+The app is signed with the maintainer's Developer ID (team in the project file) and not notarized. To build it yourself, set your own team or sign to run locally. Keep a stable signature: macOS ties the Screen Recording permission to it.
+
+To try changes without touching your collection, launch with a copy: `open Pallet.app --args -PalletDataDirectory /path/to/copy`.
+
+## Data
+
+- `~/Library/Application Support/Palette/palettes.json`: your palettes (same format as the web app and the old Electron app).
+- `hidden.json`: built-in palettes you deleted.
+- `collections.json`: your collections (Mac only).
+- If a file can't be read, Pallet copies it aside as `*.unreadable-<date>.json` and never writes over it. Entries it doesn't understand are kept as they are.
 
 ## Capture
 
-- Click the menu-bar icon for the drop zone. Press it again to close.
-- Esc closes and resets. In Settings you can copy CSS on Esc.
-- Drop-zone sizes: Mini, Miny, Mo.
-- Right-click the icon for Open Collection, Settings, and Quit.
+- **Capture area** (Shift-Command-P, from any app): pick part of the screen. The first capture asks for Screen Recording; turn on Pallet in System Settings, then Quit & Reopen from the panel.
+- **Menu bar panel** (click the icon, or Option-Shift-Command-P): drop an image, click to choose one, paste (Command-V), or Capture Area. Recent palettes are one click from their CSS.
+- Dropping on the menu bar icon itself is not supported: in macOS 26, dragging to the top edge opens the Spaces bar.
 
 ## Settings
 
-- **App:** appearance, collection layout (cards or list), import on drop, hide the keyboard guide, and the background lock.
-- **Menu bar:** drop-zone size, **Show Pallet in** (Dock and menu bar, Dock only, or Menu bar only), copy CSS on Esc, and the global shortcut. The shortcut opens the drop zone in every mode.
-- **About:** the app icon and links to X, GitHub, and the website.
+- **General:** appearance (system, light, soft dark), Shuffle button, background lock.
+- **Capture:** show Pallet in the Dock and menu bar, the Dock only, or the menu bar only; open at login; save new palettes right away; copy CSS after a capture.
+- **Keyboard:** record the two global shortcuts and every menu shortcut; restore defaults.
+- **About:** made by Kika, with links to the website, X and GitHub.
 
-PNG, JPG, WebP, GIF, and AVIF, up to 20 MB. Colors are sampled locally. Images are not stored.
+## Checks after editing
 
-## Rebuild after editing source
-
-```sh
-npx --yes pnpm@11.25.0 install --frozen-lockfile
-node desktop/build.mjs
-node --test desktop/server.test.cjs
-node scripts/contrast-check.mjs
-npm ci --prefix desktop/runtime
-node desktop/package.mjs
-```
-
-`scripts/contrast-check.mjs` checks every palette, main color, mode, and background lock for readable text. It must print `PASS`.
+- `pnpm check:contrast`: every palette, main color, mode and background lock keeps readable text (theme math in `lib/palettes.ts`; `Theme.swift` must match it).
+- Build the Swift app with the command above; the project format can be checked with Xcode's `xcprojformatter`.

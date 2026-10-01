@@ -4,77 +4,68 @@
 
 # Pallet
 
-[![macOS](https://img.shields.io/badge/macOS-menu%20bar-111318?style=flat-square)](https://github.com/aka-kika/pallet)
-[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Electron](https://img.shields.io/badge/Electron-44-47848F?style=flat-square&logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![macOS](https://img.shields.io/badge/macOS-26%2B-111318?style=flat-square)](https://github.com/aka-kika/pallet)
+[![SwiftUI](https://img.shields.io/badge/SwiftUI-native-F05138?style=flat-square&logo=swift&logoColor=white)](swiftui/README.md)
 [![data](https://img.shields.io/badge/data-on%20this%20device-367749?style=flat-square)](docs/mac.md)
-[![build](https://img.shields.io/badge/build-unsigned-8D641D?style=flat-square)](docs/mac.md)
-[![version](https://img.shields.io/badge/version-1.1.1-3B82F6?style=flat-square)](https://github.com/aka-kika/pallet/releases/latest)
+[![version](https://img.shields.io/badge/version-2.0-3B82F6?style=flat-square)](CHANGELOG.md)
 [![license](https://img.shields.io/badge/license-MIT-111318?style=flat-square)](LICENSE)
 
-Pallet is a Mac menu-bar app for collecting color palettes from images. Drop a picture, extract colors on this device, and copy light and soft-dark CSS. Nothing is uploaded.
+Pallet is a Mac app for collecting color palettes from images and the screen. Drop a picture, paste one, or capture any area of the screen: Pallet reads the real palette on this device and gives you light and soft-dark CSS. Nothing is uploaded.
 
 <p align="center">
-  <img src="docs/screenshots/01-collection.png" alt="Pallet for Mac showing the Orchid Mint palette, collection grid of color cards, and a Shuffle control" width="720">
+  <img src="docs/screenshots/01-main.png" alt="Pallet for Mac: a sidebar with the library, a collection and a color slider; the selected palette Orchid Mint on top and palette cards below, all tinted by the palette" width="760">
 </p>
 
 ## Features
 
-- Local color extraction. Pixels stay on this Mac.
-- A drop zone in the menu bar, with Mini, Miny, and Mo sizes.
-- A collection that restyles the whole window from the selected palette.
-- Copy one hex, or copy light and dark CSS.
-- Lock the background while you shuffle palettes.
-- Favorites, delete with confirm, and a global shortcut you can record.
-- Readable text on every palette, checked by `scripts/contrast-check.mjs`.
-- Show Pallet in the Dock and menu bar, the Dock only, or the menu bar only.
+- **Smart extraction.** Palette graphics give only their swatches: no page frame, no text color, no photo behind the cards. Printed hex codes are read exactly, and a title becomes the name. Website screenshots give the site's background, surface, text and accent colors. Photos give their main colors.
+- **Menu bar capture.** Pick any area of the screen from any app (Shift-Command-P), or open the menu bar panel (Option-Shift-Command-P) to drop or paste an image.
+- **Theme that follows the palette.** The whole canvas recolors from the selected palette; left and right arrows change its main color. Every text color stays readable ([theme rules](docs/THEME-RULES.md)).
+- **Library and collections.** All, Favorites, My Palettes, Starter Palettes, your own collections, search by name or color, and a color slider that keeps palettes with a chosen color.
+- **Copy and export.** Copy one hex or the light and dark CSS, export CSS, Markdown or JSON, share or drag a palette out as a .css file.
+- **A real Mac app.** Sidebar, customizable toolbar, undo for every change, recordable shortcuts, Dock and menu bar options.
 
-## Collection
+## Menu bar capture
 
-The main window is the selected palette on top and your cards below. Click a hex chip to copy it. Space shuffles. L locks the current background.
+<img src="docs/screenshots/02-menu-bar.png" alt="The Pallet menu bar panel: a drop area, Capture Area and Paste buttons, and recent palettes with Copy CSS" width="320">
 
-<img src="docs/screenshots/04-collection-cards.png" alt="Pallet collection grid of color cards with Orchid Mint and Signal Orange selected" width="720">
+## New palette from an image
 
-## Add an image
+The colors come straight from the swatches; the tulip photo behind the cards is skipped.
 
-Drop, paste, or choose a file. Pallet samples visible pixels. No image leaves this device.
+<img src="docs/screenshots/03-new-palette.png" alt="New Palette from Image: a palette card over a tulip field gives exactly its five swatch colors, named Tulip" width="760">
 
-<img src="docs/screenshots/02-add-image.png" alt="The Add image window in Pallet with a dashed drop zone and Extract palette" width="720">
+## Color slider
 
-## Edit before saving
+<img src="docs/screenshots/04-color-slider.png" alt="The color slider set to blue keeps only palettes with a blue color, closest first" width="760">
 
-Name the palette, set the main color, remove extras with the corner X, then add it to the collection.
+## Install and build
 
-<img src="docs/screenshots/03-extracted-palette.png" alt="An extracted palette in Pallet with named swatches, hex fields, and Add to collection" width="720">
-
-## Install
-
-Latest release: **[1.1.1](https://github.com/aka-kika/pallet/releases/latest)**. What changed: [CHANGELOG.md](CHANGELOG.md).
-
-Build it yourself with Node.js 24. See **[docs/mac.md](docs/mac.md)**, or double-click **Setup Mac.command**. After that, Pallet.app runs without Node.
+Build with Xcode 27.2 or newer on macOS 26 or newer. See **[docs/mac.md](docs/mac.md)**.
 
 ```sh
-npx --yes pnpm@11.25.0 install --frozen-lockfile
-node desktop/build.mjs
-npm ci --prefix desktop/runtime
-node desktop/package.mjs
+xcodebuild -project swiftui/Pallet.xcodeproj -scheme Pallet -configuration Release build
 ```
 
-Browser preview while developing (palettes saved there last until the server restarts):
+Your palettes live in `~/Library/Application Support/Palette/`.
+
+## Web version
+
+The same palettes and theme rules run as a web page (Next.js) for the website:
 
 ```sh
+pnpm install --frozen-lockfile
 pnpm run dev
 ```
 
+Built-in palettes are shared in `shared/builtin-palettes.json`; `lib/palettes.ts` and `swiftui/Pallet/Model/Theme.swift` compute the same theme.
+
 ## Docs
 
-- [Mac build, capture, and settings](docs/mac.md)
-- [Desktop implementation](desktop/README.md)
+- [Mac app: build, capture, settings](docs/mac.md)
+- [SwiftUI code map](swiftui/README.md)
+- [Theme rules](docs/THEME-RULES.md)
 - [Changelog](CHANGELOG.md)
-
-## Release
-
-Releases are tagged on GitHub (`v1.1.1` is the latest). Builds are unsigned and not notarized: Control-click Pallet.app, then Open, the first time. Data lives in `~/Library/Application Support/Palette/`.
 
 ## Contributing
 
