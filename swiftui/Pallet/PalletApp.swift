@@ -59,6 +59,12 @@ final class AppModel {
 
     var selectedID: String { didSet { save("selected", selectedID) } }
     var library: Library { didSet { save("library", library.rawValue) } }
+    /// A collection selected in the sidebar; nil means a Library section is.
+    var collectionID: String? { didSet { save("collection", collectionID) } }
+    /// Color slider position (0...1) while it filters; nil when it is off.
+    var colorFilter: Double?
+    var colorPosition: Double { didSet { save("colorPosition", colorPosition) } }
+    var renaming: PaletteCollection?
     var appearance: Appearance { didSet { save("appearance", appearance.rawValue) } }
     var bgLock: String? { didSet { save("bgLock", bgLock) } }
     var showShuffleButton: Bool { didSet { save("showShuffleButton", showShuffleButton) } }
@@ -76,6 +82,8 @@ final class AppModel {
         let d = UserDefaults.standard
         selectedID = d.string(forKey: "selected") ?? "seed-12"
         library = Library(rawValue: d.string(forKey: "library") ?? "") ?? .all
+        collectionID = d.string(forKey: "collection")
+        colorPosition = d.object(forKey: "colorPosition") as? Double ?? 0.12 + 0.88 * 255 / 360
         appearance = Appearance(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
         bgLock = d.string(forKey: "bgLock").flatMap(ColorMath.parseHex)
         showShuffleButton = d.object(forKey: "showShuffleButton") as? Bool ?? true
@@ -83,6 +91,18 @@ final class AppModel {
     }
 
     private func save(_ key: String, _ value: Any?) { UserDefaults.standard.set(value, forKey: key) }
+
+    enum SidebarItem: Hashable { case library(Library), collection(String) }
+
+    var sidebar: SidebarItem {
+        get { collectionID.map { .collection($0) } ?? .library(library) }
+        set {
+            switch newValue {
+            case .library(let l): library = l; collectionID = nil
+            case .collection(let id): collectionID = id
+            }
+        }
+    }
 
     var colorScheme: ColorScheme? {
         switch appearance { case .system: nil; case .light: .light; case .dark: .dark }
@@ -128,20 +148,39 @@ final class PaletteActions {
 
     /// Palettes in the current sidebar section that match the search.
     var visible: [Palette] {
-        let section: [Palette] = switch model.library {
-        case .all: store.palettes
-        case .favorites: store.palettes.filter(\.favorite)
-        case .mine: store.palettes.filter { !store.isBuiltIn($0.id) }
-        case .starter: store.palettes.filter { store.isBuiltIn($0.id) }
+        var list: [Palette]
+        if let collection = currentCollection {
+            list = collection.paletteIDs.compactMap { id in store.palettes.first { $0.id == id } }
+        } else {
+            list = switch model.library {
+            case .all: store.palettes
+            case .favorites: store.palettes.filter(\.favorite)
+            case .mine: store.palettes.filter { !store.isBuiltIn($0.id) }
+            case .starter: store.palettes.filter { store.isBuiltIn($0.id) }
+            }
         }
         let q = model.query.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !q.isEmpty else { return section }
-        return section.filter { p in
-            p.name.lowercased().contains(q)
-                || p.colors.contains { $0.lowercased().contains(q.hasPrefix("#") ? q : "#" + q) && q.count >= 3 }
-                || p.colors.contains { Naming.word($0).lowercased().hasPrefix(q) }
+        if !q.isEmpty {
+            list = list.filter { p in
+                p.name.lowercased().contains(q)
+                    || p.colors.contains { $0.lowercased().contains(q.hasPrefix("#") ? q : "#" + q) && q.count >= 3 }
+                    || p.colors.contains { Naming.word($0).lowercased().hasPrefix(q) }
+            }
         }
+        // The color slider keeps matches only, closest first.
+        if let position = model.colorFilter {
+            list = list.map { ($0, ColorFilter.score($0, at: position)) }.filter { $0.1 > 0 }
+                .enumerated().sorted { $0.element.1 != $1.element.1 ? $0.element.1 > $1.element.1 : $0.offset < $1.offset }
+                .map(\.element.0)
+        }
+        return list
     }
+
+    var currentCollection: PaletteCollection? {
+        model.collectionID.flatMap { id in store.collections.first { $0.id == id } }
+    }
+
+    var title: String { currentCollection?.name ?? model.library.title }
 
     var isDark: Bool {
         model.appearance == .dark || (model.appearance == .system && NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua)
@@ -194,7 +233,11 @@ final class PaletteActions {
     func add(_ p: Palette) {
         commit(p.id, to: p, "Add Palette")
         model.selectedID = p.id
-        if model.library == .starter || (model.library == .favorites && !p.favorite) { model.library = .all }
+        if let c = currentCollection {
+            addToCollection(p.id, c.id)
+        } else if model.library == .starter || (model.library == .favorites && !p.favorite) {
+            model.library = .all
+        }
         model.show("Palette added")
     }
 
@@ -231,6 +274,60 @@ final class PaletteActions {
         if model.bgLock != nil { model.bgLock = nil; return }
         guard let p = active else { return }
         model.bgLock = Theme(p, dark: isDark)["background"]
+    }
+
+    // MARK: Collections
+
+    /// Swap the collection list and register the way back.
+    private func commitCollections(_ next: [PaletteCollection], _ name: String) {
+        let old = store.collections
+        store.setCollections(next)
+        undoManager?.registerUndo(withTarget: store) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.commitCollections(old, name)
+                if let id = self.model.collectionID, !old.contains(where: { $0.id == id }) { self.model.sidebar = .library(.all) }
+            }
+        }
+        undoManager?.setActionName(name)
+    }
+
+    @discardableResult
+    func newCollection(named name: String = "New Collection", with ids: [String] = []) -> PaletteCollection {
+        let taken = Set(store.collections.map(\.name))
+        var title = name, n = 2
+        while taken.contains(title) { title = "\(name) \(n)"; n += 1 }
+        let c = PaletteCollection(id: PaletteCollection.newID(), name: title, paletteIDs: ids)
+        commitCollections(store.collections + [c], "New Collection")
+        return c
+    }
+
+    func renameCollection(_ id: String, to name: String) {
+        let clean = name.trimmingCharacters(in: .whitespaces)
+        guard !clean.isEmpty else { return }
+        commitCollections(store.collections.map { $0.id == id ? PaletteCollection(id: id, name: String(clean.prefix(60)), paletteIDs: $0.paletteIDs) : $0 }, "Rename Collection")
+    }
+
+    func deleteCollection(_ id: String) {
+        commitCollections(store.collections.filter { $0.id != id }, "Delete Collection")
+        if model.collectionID == id { model.sidebar = .library(.all) }
+        model.show("Collection deleted", detail: "The palettes stay in your library. Edit > Undo brings it back.")
+    }
+
+    func addToCollection(_ paletteID: String, _ collectionID: String) {
+        guard let c = store.collections.first(where: { $0.id == collectionID }), !c.paletteIDs.contains(paletteID) else { return }
+        commitCollections(store.collections.map { $0.id == collectionID ? PaletteCollection(id: $0.id, name: $0.name, paletteIDs: $0.paletteIDs + [paletteID]) : $0 }, "Add to Collection")
+        model.show("Added to \(c.name)")
+    }
+
+    func removeFromCollection(_ paletteID: String, _ collectionID: String) {
+        commitCollections(store.collections.map { $0.id == collectionID ? PaletteCollection(id: $0.id, name: $0.name, paletteIDs: $0.paletteIDs.filter { $0 != paletteID }) : $0 }, "Remove from Collection")
+    }
+
+    func moveCollections(from source: IndexSet, to destination: Int) {
+        var list = store.collections
+        list.move(fromOffsets: source, toOffset: destination)
+        commitCollections(list, "Move Collection")
     }
 
     // MARK: Copy, export, import
@@ -297,6 +394,12 @@ struct PalletCommands: Commands {
         CommandGroup(replacing: .newItem) {
             Button("New Palette from Image...") { model.importing = ImportRequest() }
                 .keyboardShortcut("o")
+            Button("New Collection") {
+                let c = actions.newCollection()
+                model.sidebar = .collection(c.id)
+                model.renaming = c
+            }
+            .keyboardShortcut("n", modifiers: [.command, .shift])
         }
         CommandGroup(replacing: .importExport) {
             Button("Export Theme...") { model.exporting = actions.active }
@@ -349,7 +452,7 @@ struct PalletCommands: Commands {
             }
             Divider()
             ForEach(Array(AppModel.Library.allCases.enumerated()), id: \.element) { i, section in
-                Button(section.title) { model.library = section }
+                Button(section.title) { model.sidebar = .library(section) }
                     .keyboardShortcut(KeyEquivalent(Character(String(i + 1))))
             }
         }

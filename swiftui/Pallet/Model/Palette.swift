@@ -39,6 +39,8 @@ extension JSONEncoder {
 @Observable
 final class PaletteStore {
     private(set) var palettes: [Palette] = []
+    /// Mac-only for now: the web app ignores collections.json.
+    private(set) var collections: [PaletteCollection] = []
     var loadError: String?
 
     private let builtins: [Palette]
@@ -63,6 +65,7 @@ final class PaletteStore {
 
     private var file: URL { directory.appendingPathComponent("palettes.json") }
     private var hiddenFile: URL { directory.appendingPathComponent("hidden.json") }
+    private var collectionsFile: URL { directory.appendingPathComponent("collections.json") }
 
     func load() {
         do {
@@ -72,6 +75,7 @@ final class PaletteStore {
                 saved = []
             }
             hidden = (try? JSONDecoder().decode([String].self, from: Data(contentsOf: hiddenFile))) ?? []
+            collections = (try? JSONDecoder().decode([PaletteCollection].self, from: Data(contentsOf: collectionsFile))) ?? []
             loadError = nil
         } catch {
             loadError = "Your saved collection could not be read. Showing starter palettes."
@@ -118,6 +122,18 @@ final class PaletteStore {
             loadError = nil
         } catch {
             loadError = "Changes not saved. Your change is still visible."
+        }
+    }
+
+    /// Replace the whole list of collections and save it.
+    func setCollections(_ list: [PaletteCollection]) {
+        collections = list
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            lastWrite = Date()
+            try atomic(JSONEncoder.pallet.encode(list), to: collectionsFile)
+        } catch {
+            loadError = "Collections not saved. Your change is still visible."
         }
     }
 

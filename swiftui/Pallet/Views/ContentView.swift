@@ -7,6 +7,7 @@ struct ContentView: View {
     @Environment(AppModel.self) private var model
     @Environment(PaletteActions.self) private var actions
     @Environment(\.undoManager) private var undoManager
+    @State private var renameText = ""
 
     var body: some View {
         @Bindable var model = model
@@ -26,6 +27,12 @@ struct ContentView: View {
             ImportSheet(request: request) { actions.add($0) }
         }
         .sheet(item: $model.exporting) { ExportSheet(palette: $0) }
+        .alert("Rename Collection", isPresented: Binding(get: { model.renaming != nil }, set: { if !$0 { model.renaming = nil } })) {
+            TextField("Name", text: $renameText)
+            Button("Rename") { if let c = model.renaming { actions.renameCollection(c.id, to: renameText) } }
+            Button("Cancel", role: .cancel) {}
+        }
+        .onChange(of: model.renaming) { renameText = model.renaming?.name ?? "" }
         .alert("Delete \u{201C}\(model.pendingDelete?.name ?? "")\u{201D}?", isPresented: Binding(get: { model.pendingDelete != nil }, set: { if !$0 { model.pendingDelete = nil } })) {
             Button("Delete", role: .destructive) { if let p = model.pendingDelete { actions.delete(p) } }
             Button("Cancel", role: .cancel) {}
@@ -38,18 +45,59 @@ struct ContentView: View {
 struct Sidebar: View {
     @Environment(PaletteStore.self) private var store
     @Environment(AppModel.self) private var model
+    @Environment(PaletteActions.self) private var actions
 
     var body: some View {
-        List(selection: Binding(get: { model.library }, set: { if let s = $0 { model.library = s } })) {
+        List(selection: Binding(get: { model.sidebar }, set: { if let s = $0 { model.sidebar = s } })) {
             Section("Library") {
                 ForEach(AppModel.Library.allCases) { section in
                     Label(section.title, systemImage: section.symbol)
                         .badge(count(section))
-                        .tag(section)
+                        .tag(AppModel.SidebarItem.library(section))
+                        .dropDestination(for: PaletteDrag.self) { items, _ in
+                            guard section == .favorites else { return false }
+                            items.map(\.palette).filter { p in store.palettes.contains { $0.id == p.id && !$0.favorite } }.forEach { actions.toggleFavorite($0) }
+                            return true
+                        }
+                }
+            }
+            Section("Collections") {
+                ForEach(store.collections) { c in
+                    Label(c.name, systemImage: "folder")
+                        .badge(c.paletteIDs.filter { id in store.palettes.contains { $0.id == id } }.count)
+                        .tag(AppModel.SidebarItem.collection(c.id))
+                        .dropDestination(for: PaletteDrag.self) { items, _ in
+                            items.forEach { actions.addToCollection($0.palette.id, c.id) }
+                            return true
+                        }
+                        .contextMenu {
+                            Button("Rename...") { model.renaming = c }
+                            Button("Delete Collection", role: .destructive) { actions.deleteCollection(c.id) }
+                        }
+                }
+                .onMove(perform: actions.moveCollections)
+                if store.collections.isEmpty {
+                    Text("Drag palettes onto a new collection to group them.")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .selectionDisabled()
                 }
             }
         }
         .listStyle(.sidebar)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
+                ColorSlider()
+                Button("New Collection", systemImage: "plus") {
+                    let c = actions.newCollection()
+                    model.sidebar = .collection(c.id)
+                    model.renaming = c
+                }
+                .buttonStyle(.borderless)
+                .help("New collection (Shift-Command-N)")
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+        }
     }
 
     private func count(_ section: AppModel.Library) -> Int {
@@ -59,6 +107,58 @@ struct Sidebar: View {
         case .mine: store.palettes.filter { !store.isBuiltIn($0.id) }.count
         case .starter: store.palettes.filter { store.isBuiltIn($0.id) }.count
         }
+    }
+}
+
+/// Greys, then the color wheel. Drag to keep only palettes with a color near
+/// the knob, closest first. Same idea as the color slider in Iconzzz.
+struct ColorSlider: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Color").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Spacer()
+                if model.colorFilter != nil {
+                    Button { model.colorFilter = nil } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }
+                        .buttonStyle(.plain)
+                        .help("Clear the color")
+                        .accessibilityLabel("Clear the color")
+                }
+            }
+            GeometryReader { geo in
+                let width = geo.size.width
+                let knob = model.colorFilter ?? model.colorPosition
+                ZStack(alignment: .leading) {
+                    Capsule().fill(ColorFilter.track).frame(height: 8)
+                    Circle()
+                        .fill(ColorFilter.color(at: knob))
+                        .frame(width: 16, height: 16)
+                        .overlay(Circle().stroke(.white, lineWidth: 2))
+                        .shadow(color: .black.opacity(0.35), radius: 1)
+                        .opacity(model.colorFilter == nil ? 0.5 : 1)
+                        .offset(x: knob * width - 8)
+                }
+                .frame(maxHeight: .infinity)
+                .contentShape(.rect)
+                .gesture(DragGesture(minimumDistance: 0).onChanged { value in
+                    let position = min(0.999, max(0, value.location.x / max(width, 1)))
+                    model.colorPosition = position
+                    model.colorFilter = position
+                })
+            }
+            .frame(height: 18)
+            .accessibilityElement()
+            .accessibilityLabel("Color filter")
+            .accessibilityValue(model.colorFilter == nil ? "Off" : "On")
+            .accessibilityAdjustableAction { direction in
+                let position = min(0.999, max(0, (model.colorFilter ?? model.colorPosition) + (direction == .increment ? 0.02 : -0.02)))
+                model.colorPosition = position
+                model.colorFilter = position
+            }
+        }
+        .help("Drag to show palettes with this color")
     }
 }
 
@@ -107,7 +207,7 @@ struct Canvas: View {
                                             select: { model.selectedID = p.id; focused = true },
                                             favorite: { actions.toggleFavorite(p) })
                                     .id(p.id)
-                                    .draggable(ThemeFile(palette: p)) { PaletteDragPreview(palette: p) }
+                                    .draggable(PaletteDrag(palette: p)) { PaletteDragPreview(palette: p) }
                                     .contextMenu { menu(p) }
                             }
                         }
@@ -132,7 +232,7 @@ struct Canvas: View {
         .tint(theme.link)
         .foregroundStyle(theme.text)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: theme)
-        .navigationTitle(model.library.title)
+        .navigationTitle(actions.title)
         .navigationSubtitle(active.name)
         .toolbar(id: "canvas") { toolbar }
         .focusable()
@@ -147,6 +247,10 @@ struct Canvas: View {
     private var empty: some View {
         if !model.query.isEmpty {
             ContentUnavailableView.search(text: model.query)
+        } else if model.colorFilter != nil {
+            ContentUnavailableView("No Palettes with This Color", systemImage: "paintpalette", description: Text("Drag the color slider, or clear it."))
+        } else if actions.currentCollection != nil {
+            ContentUnavailableView("Empty Collection", systemImage: "folder", description: Text("Drag palettes onto it in the sidebar, or right-click a palette > Add to Collection."))
         } else if model.library == .favorites {
             ContentUnavailableView("No Favorites Yet", systemImage: "heart", description: Text("Click a heart or choose Palette > Add to Favorites."))
         } else {
@@ -203,6 +307,20 @@ struct Canvas: View {
         ShareLink(item: ThemeFile(palette: p), preview: SharePreview(p.name))
         Divider()
         Button(p.favorite ? "Remove from Favorites" : "Add to Favorites", systemImage: p.favorite ? "heart.slash" : "heart") { actions.toggleFavorite(p) }
+        Menu("Add to Collection", systemImage: "folder.badge.plus") {
+            ForEach(store.collections) { c in
+                Button(c.name) { actions.addToCollection(p.id, c.id) }
+                    .disabled(c.paletteIDs.contains(p.id))
+            }
+            if !store.collections.isEmpty { Divider() }
+            Button("New Collection...") {
+                let c = actions.newCollection(with: [p.id])
+                model.renaming = c
+            }
+        }
+        if let c = actions.currentCollection {
+            Button("Remove from \u{201C}\(c.name)\u{201D}", systemImage: "folder.badge.minus") { actions.removeFromCollection(p.id, c.id) }
+        }
         Divider()
         Button("Delete...", systemImage: "trash", role: .destructive) { model.pendingDelete = p }
             .disabled(store.palettes.count <= 1)
@@ -255,11 +373,27 @@ nonisolated struct ThemeFile: Transferable {
     let palette: Palette
 
     static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(exportedContentType: .cssTheme) { file in
-            let name = file.palette.name.lowercased().replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent((name.isEmpty ? "palette" : name) + ".css")
-            try ThemeExport.css(file.palette).write(to: url, atomically: true, encoding: .utf8)
-            return SentTransferredFile(url)
+        FileRepresentation(exportedContentType: .cssTheme) { file in try write(file.palette) }
+        ProxyRepresentation { ThemeExport.css($0.palette) }
+    }
+
+    static func write(_ p: Palette) throws -> SentTransferredFile {
+        let name = p.name.lowercased().replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent((name.isEmpty ? "palette" : name) + ".css")
+        try ThemeExport.css(p).write(to: url, atomically: true, encoding: .utf8)
+        return SentTransferredFile(url)
+    }
+}
+
+/// What a dragged card carries: its theme as a .css file and text for other
+/// apps, and the palette as JSON so a sidebar collection can take it in.
+nonisolated struct PaletteDrag: Codable, Transferable {
+    let palette: Palette
+
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .json)
+        FileRepresentation(exportedContentType: .cssTheme) { drag in
+            try ThemeFile.write(drag.palette)
         }
         ProxyRepresentation { ThemeExport.css($0.palette) }
     }
