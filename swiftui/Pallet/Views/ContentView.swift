@@ -77,7 +77,7 @@ struct Sidebar: View {
                 }
                 .onMove(perform: actions.moveCollections)
                 if store.collections.isEmpty {
-                    Text("Drag palettes onto a new collection to group them.")
+                    Text("No collections yet")
                         .font(.caption).foregroundStyle(.secondary)
                         .selectionDisabled()
                 }
