@@ -44,3 +44,6 @@ next-env.d.ts
 swiftui/build/
 DerivedData/
 xcuserdata/
+
+# Static build for akakika.com/pallet
+/dist-site/

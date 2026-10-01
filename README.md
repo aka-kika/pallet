@@ -60,11 +60,13 @@ Your palettes live in `~/Library/Application Support/Palette/`.
 
 ## Web version
 
-The same palettes and theme rules run as a web page (Next.js) for the website:
+The same app runs as a web page at **[akakika.com/pallet](https://akakika.com/pallet/)**, with Kika's collection and a download button. Visitors' own palettes stay in their browser.
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm run dev
+pnpm run dev            # local preview (Next.js)
+pnpm site:build         # static build into the akakika.com repo (public/pallet/)
+pnpm site:publish       # copy the Mac collection (names and colors) to the site, commit, push
 ```
 
 Built-in palettes are shared in `shared/builtin-palettes.json`; `lib/palettes.ts` and `swiftui/Pallet/Model/Theme.swift` compute the same theme.

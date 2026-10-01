@@ -12,7 +12,9 @@
     "build": "node scripts/run-framework.mjs build",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "test": "node scripts/contrast-check.mjs",
-    "check:contrast": "node scripts/contrast-check.mjs"
+    "check:contrast": "node scripts/contrast-check.mjs",
+    "site:build": "node scripts/build-site.mjs",
+    "site:publish": "node scripts/pallet-publish.mjs"
   },
   "dependencies": {
     "class-variance-authority": "0.7.1",

@@ -33,3 +33,12 @@
 .app-shell,.app-shell *,.palette-ctx,.palette-ctx *,[data-slot=dialog-content],[data-slot=dialog-content] *{transition-property:background-color,color,border-color,outline-color,fill,flex,translate;transition-duration:.28s;transition-timing-function:ease}
 body{transition:background-color .28s ease}
 .app-shell .main-swatch{transition-duration:.32s;transition-timing-function:cubic-bezier(.22,1,.36,1)}
+
+/* Public page on akakika.com: the Download for Mac button in the top bar. */
+.download-mac{min-height:36px;padding:7px 14px;font-size:13px;margin-right:6px}
+.download-mac svg{width:16px;height:16px}
+@media(max-width:767px){.download-mac span{display:none}.download-mac{padding:7px 10px;margin-right:0}}
+
+/* Phones: the logo gets its own row above the buttons, and the caption under
+   the swatches starts at the left instead of being cut on both sides. */
+@media(max-width:767px){.topbar{height:auto;flex-wrap:wrap;row-gap:12px;padding-top:18px;margin-bottom:18px}.top-actions{width:100%;justify-content:space-between;gap:0}.palette-caption{justify-content:flex-start}.palette-caption span:last-child{display:none}}
