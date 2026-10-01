@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 @main
 struct PalletApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var store: PaletteStore
     @State private var model: AppModel
     @State private var actions: PaletteActions
@@ -11,7 +12,9 @@ struct PalletApp: App {
         let store = PaletteStore(), model = AppModel()
         _store = State(initialValue: store)
         _model = State(initialValue: model)
-        _actions = State(initialValue: PaletteActions(store: store, model: model))
+        let actions = PaletteActions(store: store, model: model)
+        _actions = State(initialValue: actions)
+        MenuBarController.shared = MenuBarController(store: store, model: model, actions: actions)
     }
 
     var body: some Scene {
@@ -23,15 +26,9 @@ struct PalletApp: App {
         }
         .defaultSize(width: 980, height: 680)
         .windowResizability(.contentMinSize)
+        // Menu bar only: start quietly, the window opens from the menu bar.
+        .defaultLaunchBehavior(model.presence == .menuBar ? .suppressed : .presented)
         .commands { PalletCommands(store: store, model: model, actions: actions) }
-
-        Window("About Pallet", id: "about") {
-            AboutView()
-                .environment(model)
-        }
-        .windowResizability(.contentSize)
-        .windowStyle(.hiddenTitleBar)
-        .restorationBehavior(.disabled)
 
         Settings {
             SettingsView()
@@ -69,6 +66,23 @@ final class AppModel {
     var bgLock: String? { didSet { save("bgLock", bgLock) } }
     var showShuffleButton: Bool { didSet { save("showShuffleButton", showShuffleButton) } }
     var autoImportOnDrop: Bool { didSet { save("autoImportOnDrop", autoImportOnDrop) } }
+
+    /// Where Pallet shows up. The Electron app called this "Show Pallet in".
+    enum Presence: String, CaseIterable { case both, dock, menuBar }
+    var presence: Presence { didSet { save("presence", presence.rawValue); MenuBarController.shared?.apply() } }
+    var captureShortcut: Shortcut? {
+        didSet {
+            UserDefaults.standard.set(captureShortcut.flatMap { try? JSONEncoder().encode($0) }, forKey: "captureShortcut")
+            MenuBarController.shared?.apply()
+        }
+    }
+    var copyCSSAfterCapture: Bool { didSet { save("copyCSSAfterCapture", copyCSSAfterCapture) } }
+
+    enum SettingsTab: String { case general, capture, keyboard, about }
+    var settingsTab: SettingsTab = .general
+    /// Set from the menu commands, which exist even when no window is open.
+    @ObservationIgnored var openMainWindow: (() -> Void)?
+    @ObservationIgnored var openSettingsWindow: (() -> Void)?
     var query = ""
 
     var importing: ImportRequest?
@@ -88,6 +102,13 @@ final class AppModel {
         bgLock = d.string(forKey: "bgLock").flatMap(ColorMath.parseHex)
         showShuffleButton = d.object(forKey: "showShuffleButton") as? Bool ?? true
         autoImportOnDrop = d.bool(forKey: "autoImportOnDrop")
+        presence = Presence(rawValue: d.string(forKey: "presence") ?? "") ?? .both
+        if d.object(forKey: "captureShortcut") == nil {
+            captureShortcut = .standard
+        } else {
+            captureShortcut = d.data(forKey: "captureShortcut").flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }
+        }
+        copyCSSAfterCapture = d.bool(forKey: "copyCSSAfterCapture")
     }
 
     private func save(_ key: String, _ value: Any?) { UserDefaults.standard.set(value, forKey: key) }
@@ -386,10 +407,17 @@ struct PalletCommands: Commands {
     let model: AppModel
     let actions: PaletteActions
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     var body: some Commands {
+        // The menu bar panel opens windows through these.
+        let _ = model.openMainWindow = { openWindow(id: "main") }
+        let _ = model.openSettingsWindow = { openSettings() }
         CommandGroup(replacing: .appInfo) {
-            Button("About Pallet") { openWindow(id: "about") }
+            Button("About Pallet") { model.settingsTab = .about; openSettings() }
+        }
+        CommandGroup(after: .newItem) {
+            Button("Capture Screen Area") { MenuBarController.shared?.captureArea() }
         }
         CommandGroup(replacing: .newItem) {
             Button("New Palette from Image...") { model.importing = ImportRequest() }

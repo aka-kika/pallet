@@ -28,6 +28,13 @@ The native Mac version of Pallet. The Electron app in `desktop/` stays the shipp
 - System frame: sidebar with search (All, Favorites, My Palettes, Starter), customizable toolbar (right-click it), standard menus, Undo for every change. Search sits in the sidebar: in the toolbar it crashes AppKit when the toolbar is customized (macOS 27.2).
 - Pallet content: the palette-colored canvas, swatch strip, arrows and cards.
 
+## Menu bar capture
+
+- Menu bar icon: click for the panel (Capture Area, Paste Image, recent palettes one click from their CSS), or drop an image on the icon.
+- Capture shortcut (default Shift-Command-P, set in Settings > Capture) picks any area of the screen from any app. The first capture asks for Screen Recording permission.
+- Settings > Capture: show in Dock, menu bar or both; open at login; save right away; copy CSS after a capture.
+- Code: `Pallet/MenuBar/` (AppKit status item and popover, Carbon hot key, `screencapture -i`).
+
 ## Keys
 
 Listed in Settings > Keyboard. Space shuffle, Left/Right or Cmd+[ ] main color, Up/Down palettes, L lock, Cmd+C copy CSS, Cmd+V paste an image, Cmd+D favorite, Cmd+O new from image, Cmd+E export, Cmd+Delete delete, Cmd+Z undo, Cmd+1 to 4 sidebar.
