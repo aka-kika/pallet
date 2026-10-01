@@ -7,7 +7,8 @@
 [![macOS](https://img.shields.io/badge/macOS-26%2B-111318?style=flat-square)](https://github.com/aka-kika/pallet)
 [![SwiftUI](https://img.shields.io/badge/SwiftUI-native-F05138?style=flat-square&logo=swift&logoColor=white)](swiftui/README.md)
 [![data](https://img.shields.io/badge/data-on%20this%20device-367749?style=flat-square)](docs/mac.md)
-[![version](https://img.shields.io/badge/version-2.0-3B82F6?style=flat-square)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-2.0-3B82F6?style=flat-square)](https://github.com/aka-kika/pallet/releases/latest)
+[![notarized](https://img.shields.io/badge/Developer%20ID-notarized-367749?style=flat-square)](docs/mac.md)
 [![license](https://img.shields.io/badge/license-MIT-111318?style=flat-square)](LICENSE)
 
 Pallet is a Mac app for collecting color palettes from images and the screen. Drop a picture, paste one, or capture any area of the screen: Pallet reads the real palette on this device and gives you light and soft-dark CSS. Nothing is uploaded.
@@ -43,7 +44,11 @@ The colors come straight from the swatches; the tulip photo behind the cards is 
 
 <img src="docs/screenshots/color-slider.png" alt="The color slider set to blue keeps only palettes with a blue color, closest first" width="760">
 
-## Install and build
+## Install
+
+Download **[Pallet 2.0](https://github.com/aka-kika/pallet/releases/latest)** (macOS 26 or newer), unzip, and move Pallet.app to Applications. It is signed with Developer ID and notarized by Apple. What changed: [CHANGELOG.md](CHANGELOG.md).
+
+## Build
 
 Build with Xcode 27.2 or newer on macOS 26 or newer. See **[docs/mac.md](docs/mac.md)**.
 

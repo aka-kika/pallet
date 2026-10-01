@@ -13,7 +13,7 @@ xcodebuild -project swiftui/Pallet.xcodeproj -scheme Pallet -configuration Relea
 
 3. Move `build/dd/Build/Products/Release/Pallet.app` into Applications.
 
-The app is signed with the maintainer's Developer ID (team in the project file) and not notarized. To build it yourself, set your own team or sign to run locally. Keep a stable signature: macOS ties the Screen Recording permission to it.
+Releases on GitHub are signed with Developer ID, notarized and stapled. Local builds are signed with the maintainer's Developer ID (team in the project file) but not notarized; to build it yourself, set your own team or sign to run locally. Keep a stable signature: macOS ties the Screen Recording permission to it.
 
 To try changes without touching your collection, launch with a copy: `open Pallet.app --args -PalletDataDirectory /path/to/copy`.
 
