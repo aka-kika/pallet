@@ -365,8 +365,8 @@ final class PaletteActions {
     }
 
     func pasteImage() {
-        guard let image = NSImage(pasteboard: .general) else { model.show("No image on the clipboard."); return }
-        model.importing = ImportRequest(image: image, fileName: nil)
+        guard let (image, name) = pastedImage(.general) else { model.show("No image on the clipboard."); return }
+        model.importing = ImportRequest(image: image, fileName: name)
     }
 
     func exportCollection() {
@@ -490,6 +490,19 @@ struct PalletCommands: Commands {
         guard let window = NSApp.keyWindow else { return false }
         return window.firstResponder is NSText || window.attachedSheet != nil || window.isSheet
     }
+}
+
+/// The image on a pasteboard or in a drag. A file copied in Finder carries
+/// both the file and its Finder icon: the file wins, so we read the photo,
+/// not the JPG icon.
+func pastedImage(_ pb: NSPasteboard) -> (NSImage, String?)? {
+    if let urls = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] {
+        for url in urls {
+            if let image = NSImage(contentsOf: url) { return (image, url.deletingPathExtension().lastPathComponent) }
+        }
+        return nil   // files, but none of them an image: never fall back to their icons
+    }
+    return NSImage(pasteboard: pb).map { ($0, nil) }
 }
 
 func copyToPasteboard(_ text: String) {

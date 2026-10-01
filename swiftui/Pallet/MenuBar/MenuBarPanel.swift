@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The panel under the menu bar icon: capture, the colors just found, and the
 /// latest palettes one click from their CSS.
@@ -7,6 +8,7 @@ struct MenuBarPanel: View {
     @Environment(PaletteStore.self) private var store
     @Environment(AppModel.self) private var model
     @State private var copied: String?
+    @State private var dropping = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -56,26 +58,62 @@ struct MenuBarPanel: View {
         }
         .padding(14)
         .frame(width: 300)
+        // Drop an image anywhere on the panel, whatever it is showing.
+        .onDrop(of: [.fileURL, .image], isTargeted: $dropping) { providers in
+            load(providers)
+            return true
+        }
         .preferredColorScheme(model.colorScheme)
     }
 
+    /// Three ways in: drop or choose an image, capture part of the screen,
+    /// or paste.
     private var start: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Button { controller.captureArea() } label: {
-                Label("Capture Area", systemImage: "viewfinder").frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            HStack {
-                Button("Paste Image", systemImage: "doc.on.clipboard") { controller.pasteImage() }
-                    .buttonStyle(.borderless)
-                Spacer()
-                if let shortcut = model.captureShortcut {
-                    Text(shortcut.display).font(.caption).foregroundStyle(.secondary)
-                        .help("Capture from anywhere")
+            Button { controller.chooseImage() } label: {
+                VStack(spacing: 6) {
+                    Image(systemName: "photo.badge.plus").font(.system(size: 22, weight: .light))
+                    Text("Drop an image here").font(.callout)
+                    Text("or click to choose one").font(.caption).foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, minHeight: 104)
+                .background(dropping ? AnyShapeStyle(.tint.opacity(0.14)) : AnyShapeStyle(.quaternary.opacity(0.5)), in: .rect(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(dropping ? AnyShapeStyle(.tint) : AnyShapeStyle(.separator), style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
+                .contentShape(.rect)
             }
-            Text("Or drop an image on the menu bar icon.").font(.caption).foregroundStyle(.secondary)
+            .buttonStyle(.plain)
+            HStack(spacing: 8) {
+                Button { controller.captureArea() } label: {
+                    Label("Capture Area", systemImage: "viewfinder").frame(maxWidth: .infinity)
+                }
+                .help(model.captureShortcut.map { "Pick part of the screen (\($0.display), from any app)" } ?? "Pick part of the screen")
+                Button { controller.pasteImage() } label: {
+                    Label("Paste", systemImage: "doc.on.clipboard").frame(maxWidth: .infinity)
+                }
+                .keyboardShortcut("v")
+                .help("Paste a copied image or image file (\u{2318}V)")
+            }
+            .controlSize(.large)
+            if let shortcut = model.captureShortcut {
+                Text("\(shortcut.display) captures from any app. \u{2318}V pastes here.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func load(_ providers: [NSItemProvider]) {
+        guard let provider = providers.first else { return }
+        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                guard let url, let image = NSImage(contentsOf: url) else { return }
+                let name = url.deletingPathExtension().lastPathComponent
+                Task { @MainActor in controller.take(image, name: name) }
+            }
+        } else {
+            _ = provider.loadObject(ofClass: NSImage.self) { object, _ in
+                guard let image = object as? NSImage else { return }
+                Task { @MainActor in controller.take(image, name: nil) }
+            }
         }
     }
 

@@ -7,7 +7,7 @@ import ServiceManagement
 /// pick an area of the screen. AppKit so the panel can open by itself after a
 /// capture and the icon can take drops.
 @Observable
-final class MenuBarController {
+final class MenuBarController: NSObject, NSPopoverDelegate {
     enum Phase {
         case idle
         case working
@@ -36,13 +36,18 @@ final class MenuBarController {
     @ObservationIgnored let actions: PaletteActions
     @ObservationIgnored private var item: NSStatusItem?
     @ObservationIgnored private let popover = NSPopover()
+    @ObservationIgnored private lazy var statusDrop = StatusWindowDrop { [weak self] image, name in self?.take(image, name: name) }
     @ObservationIgnored private lazy var hotKey = HotKey { [weak self] in self?.captureArea() }
 
     init(store: PaletteStore, model: AppModel, actions: PaletteActions) {
         self.store = store
         self.model = model
         self.actions = actions
-        popover.behavior = .transient
+        super.init()
+        popover.delegate = self
+        // Stays open while you drag a file over from Finder; Esc or a click on
+        // the icon closes it.
+        popover.behavior = .semitransient
         popover.animates = true
         let host = NSHostingController(rootView: MenuBarPanel(controller: self)
             .environment(store).environment(model).environment(actions))
@@ -77,6 +82,10 @@ final class MenuBarController {
             let drop = StatusDropView(frame: button.bounds) { [weak self] in self?.toggle() } onDrop: { [weak self] image, name in self?.take(image, name: name) }
             drop.autoresizingMask = [.width, .height]
             button.addSubview(drop)
+            // The menu bar sends drags to the button's window, which hands them
+            // to its delegate.
+            button.window?.registerForDraggedTypes([.fileURL, .png, .tiff])
+            button.window?.delegate = statusDrop
         }
         self.item = item
     }
@@ -85,6 +94,15 @@ final class MenuBarController {
         if let item { NSStatusBar.system.removeStatusItem(item) }
         item = nil
         popover.performClose(nil)
+    }
+
+    /// A finished result is cleared when the panel closes; an unsaved one waits.
+    func popoverDidClose(_ notification: Notification) {
+        switch phase {
+        case .result(let r) where r.saved == nil: break
+        case .working: break
+        default: phase = .idle
+        }
     }
 
     func toggle() {
@@ -128,9 +146,18 @@ final class MenuBarController {
         do { try process.run() } catch { phase = .failed("Screen capture could not start."); showPanel() }
     }
 
+    func chooseImage() {
+        popover.performClose(nil)
+        NSApp.activate()
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        guard panel.runModal() == .OK, let url = panel.url, let image = NSImage(contentsOf: url) else { return }
+        take(image, name: url.deletingPathExtension().lastPathComponent)
+    }
+
     func pasteImage() {
-        guard let image = NSImage(pasteboard: .general) else { phase = .failed("No image on the clipboard."); return }
-        take(image, name: nil)
+        guard let (image, name) = pastedImage(.general) else { phase = .failed("No image on the clipboard. Copy an image or an image file first."); return }
+        take(image, name: name)
     }
 
     /// Read an image's colors and show them in the panel (or in the main
@@ -243,19 +270,36 @@ final class StatusDropView: NSView {
     override func mouseDown(with event: NSEvent) { onClick() }
     override func rightMouseDown(with event: NSEvent) { onClick() }
 
+    /// Hovering a drag over the icon opens the panel, so there is a big area
+    /// to drop on (dropping on the icon itself works too).
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        NSImage.canInit(with: sender.draggingPasteboard) ? .copy : []
+        guard NSImage.canInit(with: sender.draggingPasteboard) else { return [] }
+        MenuBarController.shared?.showPanel()
+        return .copy
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        let pb = sender.draggingPasteboard
-        if let url = (pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL])?.first,
-           let image = NSImage(contentsOf: url) {
-            onDrop(image, url.deletingPathExtension().lastPathComponent)
-            return true
-        }
-        guard let image = NSImage(pasteboard: pb) else { return false }
-        onDrop(image, nil)
+        guard let (image, name) = pastedImage(sender.draggingPasteboard) else { return false }
+        onDrop(image, name)
+        return true
+    }
+}
+
+/// Drag destination for the menu bar button's window (the window forwards
+/// drag messages to its delegate).
+final class StatusWindowDrop: NSObject, NSWindowDelegate, NSDraggingDestination {
+    private let onDrop: (NSImage, String?) -> Void
+    init(onDrop: @escaping (NSImage, String?) -> Void) { self.onDrop = onDrop }
+
+    func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard NSImage.canInit(with: sender.draggingPasteboard) else { return [] }
+        MenuBarController.shared?.showPanel()   // a bigger place to drop
+        return .copy
+    }
+
+    func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let (image, name) = pastedImage(sender.draggingPasteboard) else { return false }
+        onDrop(image, name)
         return true
     }
 }
