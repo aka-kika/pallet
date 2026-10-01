@@ -64,31 +64,15 @@ struct CaptureSettings: View {
             Toggle("Open at login", isOn: $openAtLogin)
                 .onChange(of: openAtLogin) { MenuBarController.shared?.launchAtLogin = openAtLogin }
             Section {
-                LabeledContent("Capture area") { ShortcutRecorder(shortcut: $model.captureShortcut, other: model.panelShortcut) }
-                if MenuBarController.shared?.shortcutAvailable == false { taken }
-                LabeledContent("Open the panel") { ShortcutRecorder(shortcut: $model.panelShortcut, other: model.captureShortcut) }
-                if MenuBarController.shared?.panelShortcutAvailable == false { taken }
-            } header: {
-                Text("Shortcuts, from any app")
-            } footer: {
-                Text("Capture picks any area of the screen (the first one asks for Screen Recording). The panel takes a dropped or pasted image.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Section {
                 Toggle("Save new palettes right away", isOn: $model.autoImportOnDrop)
                 Toggle("Copy CSS after saving a capture", isOn: $model.copyCSSAfterCapture)
             } footer: {
-                Text("Right away skips the review step for drops, pastes and captures. Undo still works.")
+                Text("Right away skips the review step for drops, pastes and captures. Undo still works. Shortcuts are in the Keyboard tab.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
         .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private var taken: some View {
-        Label("Another app uses this shortcut. Pick a different one.", systemImage: "exclamationmark.triangle")
-            .font(.caption).foregroundStyle(.orange)
     }
 }
 
@@ -136,20 +120,91 @@ struct ShortcutRecorder: View {
     }
 }
 
+/// Every shortcut, recordable: from any app, the menus, and the fixed keys
+/// in the window.
 struct KeyboardSettings: View {
-    static let keys = [("Space  or  \u{2318}R", "Shuffle"), ("\u{2190} \u{2192}  or  \u{2318}[ \u{2318}]", "Change main color"), ("\u{2191} \u{2193}", "Next or previous palette"),
-                       ("L  or  \u{2318}L", "Lock background"), ("\u{2318}C", "Copy CSS"), ("\u{2318}V", "Paste an image"),
-                       ("\u{2318}D", "Add to Favorites"), ("\u{2318}O", "New palette from image"), ("\u{21E7}\u{2318}N", "New collection"),
-                       ("\u{2318}E", "Export theme"), ("\u{21E7}\u{2318}P", "Capture area, from any app"), ("\u{2325}\u{21E7}\u{2318}P", "Open the menu bar panel, from any app"), ("\u{2318}\u{232B}", "Delete palette"), ("\u{2318}Z", "Undo"), ("\u{2318}1 to \u{2318}4", "Library sections")]
+    @Environment(AppModel.self) private var model
+    static let fixed = [("Space", "Shuffle"), ("\u{2190} \u{2192}", "Change main color"), ("\u{2191} \u{2193}", "Next or previous palette"),
+                        ("L", "Lock background"), ("\u{2318}C", "Copy CSS (or text)"), ("\u{2318}V", "Paste an image"),
+                        ("\u{2318}\u{232B}", "Delete palette"), ("\u{2318}Z", "Undo"), ("\u{2318}1 to \u{2318}4", "Library sections")]
 
     var body: some View {
+        @Bindable var model = model
         Form {
-            ForEach(Self.keys, id: \.1) { key, label in
-                LabeledContent(label) { Text(key).font(.system(.body, design: .rounded)).foregroundStyle(.secondary) }
+            Section("From any app") {
+                LabeledContent("Capture area") { ShortcutRecorder(shortcut: $model.captureShortcut, other: model.panelShortcut) }
+                if MenuBarController.shared?.shortcutAvailable == false { taken }
+                LabeledContent("Open the menu bar panel") { ShortcutRecorder(shortcut: $model.panelShortcut, other: model.captureShortcut) }
+                if MenuBarController.shared?.panelShortcutAvailable == false { taken }
+            }
+            Section {
+                ForEach(AppCommand.allCases) { command in
+                    LabeledContent(command.title) { AppShortcutRecorder(command: command) }
+                }
+            } header: {
+                Text("In Pallet")
+            } footer: {
+                HStack {
+                    Text("Click a shortcut, then press the new keys. Esc cancels.").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Restore Defaults") { model.resetCombos() }.controlSize(.small)
+                }
+            }
+            Section("Fixed keys") {
+                ForEach(Self.fixed, id: \.1) { key, label in
+                    LabeledContent(label) { Text(key).font(.system(.body, design: .rounded)).foregroundStyle(.secondary) }
+                }
             }
         }
         .formStyle(.grouped)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(height: 560)
+    }
+
+    private var taken: some View {
+        Label("Another app uses this shortcut. Pick a different one.", systemImage: "exclamationmark.triangle")
+            .font(.caption).foregroundStyle(.orange)
+    }
+}
+
+/// Records a menu shortcut. Refuses one that another Pallet command uses.
+struct AppShortcutRecorder: View {
+    let command: AppCommand
+    @Environment(AppModel.self) private var model
+    @State private var recording = false
+    @State private var monitor: Any?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Button(recording ? "Type shortcut..." : (model.combo(command)?.display ?? "None")) {
+                recording ? stop() : start()
+            }
+            .frame(minWidth: 110)
+            Button { model.setCombo(nil, for: command) } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }
+                .buttonStyle(.plain)
+                .opacity(model.combo(command) != nil && !recording ? 1 : 0)
+                .disabled(model.combo(command) == nil || recording)
+                .help("No shortcut")
+        }
+        .onDisappear(perform: stop)
+    }
+
+    private func start() {
+        recording = true
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.keyCode == 53 { stop(); return nil }          // Esc
+            if let new = KeyCombo(event: event),
+               !AppCommand.allCases.contains(where: { $0 != command && model.combo($0) == new }) {
+                model.setCombo(new, for: command)
+                stop()
+            }
+            return nil
+        }
+    }
+
+    private func stop() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+        recording = false
     }
 }
 

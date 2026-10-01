@@ -94,16 +94,7 @@ struct MenuBarPanel: View {
                 .help("Paste a copied image or image file (\u{2318}V)")
             }
             .controlSize(.large)
-            Text(hint).font(.caption).foregroundStyle(.secondary)
         }
-    }
-
-    private var hint: String {
-        var parts: [String] = []
-        if let s = model.captureShortcut { parts.append("\(s.display) captures") }
-        if let s = model.panelShortcut { parts.append("\(s.display) opens this panel") }
-        parts.append("\u{2318}V pastes")
-        return parts.joined(separator: " \u{00B7} ")
     }
 
     private func load(_ providers: [NSItemProvider]) {

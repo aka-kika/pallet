@@ -84,6 +84,22 @@ final class AppModel {
     }
     var copyCSSAfterCapture: Bool { didSet { save("copyCSSAfterCapture", copyCSSAfterCapture) } }
 
+    /// Recorded menu shortcuts; an empty key means "no shortcut".
+    private var keyCombos: [String: KeyCombo] {
+        didSet { UserDefaults.standard.set(try? JSONEncoder().encode(keyCombos), forKey: "keyCombos") }
+    }
+
+    func combo(_ command: AppCommand) -> KeyCombo? {
+        guard let k = keyCombos[command.rawValue] else { return command.standard }
+        return k.key.isEmpty ? nil : k
+    }
+
+    func setCombo(_ combo: KeyCombo?, for command: AppCommand) {
+        keyCombos[command.rawValue] = combo ?? KeyCombo("", [])
+    }
+
+    func resetCombos() { keyCombos = [:] }
+
     enum SettingsTab: String { case general, capture, keyboard, about }
     var settingsTab: SettingsTab = .general
     /// Set from the menu commands, which exist even when no window is open.
@@ -120,6 +136,7 @@ final class AppModel {
             panelShortcut = d.data(forKey: "panelShortcut").flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }
         }
         copyCSSAfterCapture = d.bool(forKey: "copyCSSAfterCapture")
+        keyCombos = d.data(forKey: "keyCombos").flatMap { try? JSONDecoder().decode([String: KeyCombo].self, from: $0) } ?? [:]
     }
 
     private func save(_ key: String, _ value: Any?) { UserDefaults.standard.set(value, forKey: key) }
@@ -302,6 +319,10 @@ final class PaletteActions {
         model.scrollTarget = next
     }
 
+    func toggleAppearance() {
+        model.appearance = isDark ? .light : .dark
+    }
+
     func toggleLock() {
         if model.bgLock != nil { model.bgLock = nil; return }
         guard let p = active else { return }
@@ -432,17 +453,17 @@ struct PalletCommands: Commands {
         }
         CommandGroup(replacing: .newItem) {
             Button("New Palette from Image...") { model.importing = ImportRequest() }
-                .keyboardShortcut("o")
+                .shortcut(model.combo(.newFromImage))
             Button("New Collection") {
                 let c = actions.newCollection()
                 model.sidebar = .collection(c.id)
                 model.renaming = c
             }
-            .keyboardShortcut("n", modifiers: [.command, .shift])
+            .shortcut(model.combo(.newCollection))
         }
         CommandGroup(replacing: .importExport) {
             Button("Export Theme...") { model.exporting = actions.active }
-                .keyboardShortcut("e")
+                .shortcut(model.combo(.export))
             Divider()
             Button("Export Collection...") { actions.exportCollection() }
             Button("Import Collection...") { actions.importCollection() }
@@ -469,21 +490,23 @@ struct PalletCommands: Commands {
         }
         CommandMenu("Palette") {
             Button("Shuffle") { actions.shuffle() }
-                .keyboardShortcut("r")
+                .shortcut(model.combo(.shuffle))
             Button("Previous Main Color") { actions.rotate(-1) }
-                .keyboardShortcut("[")
+                .shortcut(model.combo(.previousColor))
             Button("Next Main Color") { actions.rotate(1) }
-                .keyboardShortcut("]")
+                .shortcut(model.combo(.nextColor))
             Divider()
             Button(actions.active?.favorite == true ? "Remove from Favorites" : "Add to Favorites") { actions.toggleFavorite() }
-                .keyboardShortcut("d")
+                .shortcut(model.combo(.favorite))
             Button(model.bgLock == nil ? "Lock Background" : "Unlock Background") { actions.toggleLock() }
-                .keyboardShortcut("l")
+                .shortcut(model.combo(.lock))
             Button("Copy CSS") { actions.copyCSS() }
-                .keyboardShortcut("c", modifiers: [.command, .shift])
+                .shortcut(model.combo(.copyCSS))
         }
         CommandGroup(after: .sidebar) {
             Divider()
+            Button("Switch Light / Soft Dark") { actions.toggleAppearance() }
+                .shortcut(model.combo(.appearance))
             Picker("Appearance", selection: Binding(get: { model.appearance }, set: { model.appearance = $0 })) {
                 Text("Follow System").tag(AppModel.Appearance.system)
                 Text("Light").tag(AppModel.Appearance.light)

@@ -290,10 +290,9 @@ struct Canvas: View {
                 .help("Share theme")
         }
         ToolbarItem(id: "appearance", placement: .primaryAction) {
-            Button(dark ? "Light Mode" : "Soft Dark Mode", systemImage: dark ? "sun.max" : "moon") { model.appearance = dark ? .light : .dark }
-                .help(dark ? "Switch to light" : "Switch to soft dark")
+            Button(dark ? "Light Mode" : "Soft Dark Mode", systemImage: dark ? "sun.max" : "moon") { actions.toggleAppearance() }
+                .help((dark ? "Switch to light" : "Switch to soft dark") + (model.combo(.appearance).map { " (\($0.display))" } ?? ""))
         }
-        .defaultCustomization(.hidden)
         ToolbarItem(id: "new", placement: .primaryAction) {
             Button("New Palette from Image", systemImage: "plus") { model.importing = ImportRequest() }
                 .help("New palette from image")
