@@ -23,12 +23,12 @@ struct MenuBarPanel: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Label("Pallet needs Screen Recording to read colors from the screen.", systemImage: "lock")
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("Turn on Pallet in System Settings > Privacy & Security > Screen Recording, then capture again.")
+                    Text("Turn on Pallet in System Settings > Privacy & Security > Screen Recording. macOS applies it after Pallet restarts.")
                         .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     HStack {
-                        Button("Not Now") { controller.done() }
+                        Button("Open Settings") { controller.openScreenRecordingSettings() }
                         Spacer()
-                        Button("Open Settings") { controller.openScreenRecordingSettings(); controller.done() }
+                        Button("Quit & Reopen") { controller.relaunch() }
                             .buttonStyle(.borderedProminent)
                     }
                 }

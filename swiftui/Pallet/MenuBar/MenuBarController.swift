@@ -29,6 +29,7 @@ final class MenuBarController {
     var phase: Phase = .idle
     /// False when another app already owns the capture shortcut.
     var shortcutAvailable = true
+    @ObservationIgnored private var askedForPermission = false
 
     @ObservationIgnored let store: PaletteStore
     @ObservationIgnored let model: AppModel
@@ -105,7 +106,8 @@ final class MenuBarController {
         // Without Screen Recording the picker only sees the wallpaper. Ask once,
         // then explain instead of failing quietly.
         guard CGPreflightScreenCaptureAccess() else {
-            CGRequestScreenCaptureAccess()
+            // The system prompt only once per launch; after that, the panel explains.
+            if !askedForPermission { askedForPermission = true; CGRequestScreenCaptureAccess() }
             phase = .needsPermission
             showPanel()
             return
@@ -185,6 +187,15 @@ final class MenuBarController {
     func openScreenRecordingSettings() {
         popover.performClose(nil)
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+    }
+
+    /// Screen Recording applies only to a fresh launch of the app.
+    func relaunch() {
+        let config = NSWorkspace.OpenConfiguration()
+        config.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: config) { _, _ in
+            DispatchQueue.main.async { NSApp.terminate(nil) }
+        }
     }
 
     func openMain() {

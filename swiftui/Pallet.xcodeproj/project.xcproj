@@ -46,8 +46,9 @@
       ],
       "build-settings": {
         "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
-        "CODE_SIGN_IDENTITY": "-",
+        "CODE_SIGN_IDENTITY": "Developer ID Application",
         "CODE_SIGN_STYLE": "Manual",
+        "DEVELOPMENT_TEAM": "P5RB3W3D58",
         "ENABLE_APP_SANDBOX": "NO",
         "ENABLE_HARDENED_RUNTIME": "YES",
         "GENERATE_INFOPLIST_FILE": "YES",
