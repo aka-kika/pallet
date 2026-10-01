@@ -37,11 +37,3 @@ export function titleFromFile(file:File,colors:string[]){
  if(isGenericCaptureName(raw))return nameFromColors(colors);
  return raw.slice(0,100)||nameFromColors(colors);
 }
-
-export async function refineCaptureName(colors:string[],current:string){
- try{
-  const next=await window.paletteDesktop?.suggestName?.(colors);
-  if(typeof next==='string'&&next.trim())return next.trim().slice(0,100);
- }catch{}
- return current;
-}

@@ -1,7 +1,7 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
 
-// Web preview of the shared UI. The Mac app has its own build (desktop/build.mjs).
+// The web version. The Mac app is the SwiftUI project in swiftui/.
 export default defineConfig({
   plugins: [vinext()],
 });

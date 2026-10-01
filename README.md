@@ -13,7 +13,8 @@
 Pallet is a Mac app for collecting color palettes from images and the screen. Drop a picture, paste one, or capture any area of the screen: Pallet reads the real palette on this device and gives you light and soft-dark CSS. Nothing is uploaded.
 
 <p align="center">
-  <img src="docs/screenshots/01-main.png" alt="Pallet for Mac: a sidebar with the library, a collection and a color slider; the selected palette Orchid Mint on top and palette cards below, all tinted by the palette" width="760">
+  <img src="docs/screenshots/main-light.png" alt="Pallet for Mac in light mode: a sidebar with the library and a color slider, the selected palette Deep Earth and Sky on top and palette cards below, tinted by the palette" width="49%">
+  <img src="docs/screenshots/main-dark.png" alt="Pallet for Mac in soft dark mode with the Soft Earth Tones palette selected" width="49%">
 </p>
 
 ## Features
@@ -27,17 +28,20 @@ Pallet is a Mac app for collecting color palettes from images and the screen. Dr
 
 ## Menu bar capture
 
-<img src="docs/screenshots/02-menu-bar.png" alt="The Pallet menu bar panel: a drop area, Capture Area and Paste buttons, and recent palettes with Copy CSS" width="320">
+<p>
+  <img src="docs/screenshots/menu-bar.png" alt="The Pallet menu bar panel: a drop area, Capture Area and Paste buttons, and recent palettes with Copy CSS" width="300">
+  <img src="docs/screenshots/menu-bar-result.png" alt="The panel after a capture: five colors read from a palette card, a name field, and Save" width="300">
+</p>
 
 ## New palette from an image
 
 The colors come straight from the swatches; the tulip photo behind the cards is skipped.
 
-<img src="docs/screenshots/03-new-palette.png" alt="New Palette from Image: a palette card over a tulip field gives exactly its five swatch colors, named Tulip" width="760">
+<img src="docs/screenshots/new-palette.png" alt="New Palette from Image: a palette card over a tulip field gives exactly its five swatch colors, named Tulip" width="760">
 
 ## Color slider
 
-<img src="docs/screenshots/04-color-slider.png" alt="The color slider set to blue keeps only palettes with a blue color, closest first" width="760">
+<img src="docs/screenshots/color-slider.png" alt="The color slider set to blue keeps only palettes with a blue color, closest first" width="760">
 
 ## Install and build
 

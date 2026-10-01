@@ -1,6 +1,6 @@
 # Pallet for Mac (SwiftUI)
 
-The Mac app. It replaced the Electron app in `desktop/` on 2026-10-01 (installed as /Applications/Pallet.app, bundle id `com.akakika.pallet`, signed with Developer ID).
+The Mac app. It replaced the Electron app (tag `v1.1.1`) on 2026-10-01 (installed as /Applications/Pallet.app, bundle id `com.akakika.pallet`, signed with Developer ID).
 
 ## Build and run
 

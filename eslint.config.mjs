@@ -12,16 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Build output and the packaged Mac app.
-    "desktop/build/**",
-    "desktop/release/**",
-    "desktop/runtime/**",
+    // Xcode build output.
+    "swiftui/build/**",
   ]),
-  {
-    // The Electron main process and its tests are CommonJS.
-    files: ["**/*.cjs"],
-    rules: { "@typescript-eslint/no-require-imports": "off" },
-  },
   {
     files: ["components/ui/**/*.{ts,tsx}"],
     rules: {

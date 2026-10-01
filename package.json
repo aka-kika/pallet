@@ -11,7 +11,7 @@
     "dev": "node scripts/run-framework.mjs dev",
     "build": "node scripts/run-framework.mjs build",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "test": "node --test desktop/server.test.cjs",
+    "test": "node scripts/contrast-check.mjs",
     "check:contrast": "node scripts/contrast-check.mjs"
   },
   "dependencies": {

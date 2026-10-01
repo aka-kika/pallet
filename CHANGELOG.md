@@ -10,6 +10,7 @@ Pallet for Mac is now a native SwiftUI app (`swiftui/`), 4.4 MB instead of 295 M
 - Settings in tabs, with every shortcut recordable.
 - Theme rules: picking a palette now tints the page, buttons, hover and icons, in the web app too ([docs/THEME-RULES.md](docs/THEME-RULES.md)). Built-in palettes live in `shared/builtin-palettes.json` for both.
 - Data safety: a collection file that can't be read is copied aside and never overwritten; unknown entries are kept.
+- The Electron app and its web-only helpers (quick capture window, menu bar settings) are removed from the repo; the `v1.1.1` tag keeps them.
 
 ## Unreleased (web)
 

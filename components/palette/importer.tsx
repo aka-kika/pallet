@@ -4,9 +4,8 @@ import {ImagePlus,Upload,LoaderCircle,X} from 'lucide-react';
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from '@/components/ui/dialog';
 import {extract} from '@/lib/extract';
 import {Palette,ink} from '@/lib/palettes';
-import {imageFile,fromClipboardData} from '@/lib/capture';
+import {imageFile} from '@/lib/capture';
 import {titleFromFile} from '@/lib/name';
-import '@/lib/desktop';
 export function Importer({open,onClose,file,onSave}:{open:boolean;onClose:()=>void;file:File|null;onSave:(p:Palette)=>Promise<boolean>}){
  const input=useRef<HTMLInputElement>(null),hoverUrl=useRef('');
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[draft,setDraft]=useState<Palette|null>(null),[preview,setPreview]=useState(''),[current,setCurrent]=useState<File|null>(null),[thumb,setThumb]=useState(''),[hover,setHover]=useState(''),[over,setOver]=useState(false);
@@ -16,7 +15,7 @@ export function Importer({open,onClose,file,onSave}:{open:boolean;onClose:()=>vo
  useEffect(()=>{if(open){setError('');setDraft(null);setPreview('');setCurrent(file);unpeek();}},[open,file]);
  useEffect(()=>{if(!current){setThumb('');return;}const url=URL.createObjectURL(current);setThumb(url);return()=>URL.revokeObjectURL(url);},[current]);
  useEffect(()=>()=>{if(hoverUrl.current)URL.revokeObjectURL(hoverUrl.current);},[]);
- useEffect(()=>{if(!open)return;function paste(e:ClipboardEvent){if(busy||draft)return;const f=imageFile(e.clipboardData);if(f){e.preventDefault();setCurrent(f);setError('');}else if(window.paletteDesktop){void window.paletteDesktop.readClipboardImage().then(data=>{if(data)setCurrent(fromClipboardData(data));}).catch(()=>setError('Could not read clipboard image.'));}}window.addEventListener('paste',paste);return()=>window.removeEventListener('paste',paste);},[open,busy,draft]);
+ useEffect(()=>{if(!open)return;function paste(e:ClipboardEvent){if(busy||draft)return;const f=imageFile(e.clipboardData);if(f){e.preventDefault();setCurrent(f);setError('');}}window.addEventListener('paste',paste);return()=>window.removeEventListener('paste',paste);},[open,busy,draft]);
  async function run(f:File){setBusy(true);setError('');try{const local=await extract(f);const colors=local.colors,name=titleFromFile(f,local.colors);setPreview(local.dataUrl);setDraft({id:'palette-'+Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join(''),name:name.slice(0,100)||'New palette',colors,main:0,favorite:false,source:'Local image extraction · sampled colors'});}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
  return <Dialog open={open} onOpenChange={v=>!busy&&!v&&onClose()}><DialogContent className="import-panel"><DialogTitle>Add image</DialogTitle><DialogDescription>Extract a palette, choose its main color, and save both modes.</DialogDescription>
  <input ref={input} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" onChange={e=>{setCurrent(e.target.files?.[0]||null);setDraft(null);setError('');e.target.value='';}}/>

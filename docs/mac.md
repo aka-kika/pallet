@@ -1,6 +1,6 @@
 # Pallet for Mac
 
-The native SwiftUI app in `swiftui/`. It replaced the Electron app (`desktop/`, version 1.1.1) on 2026-10-01.
+The native SwiftUI app in `swiftui/`. It replaced the Electron app (version 1.1.1, removed from the repo in 2.0; see the `v1.1.1` tag) on 2026-10-01.
 
 ## Build
 

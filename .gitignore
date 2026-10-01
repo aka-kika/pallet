@@ -38,10 +38,6 @@ yarn-error.log*
 next-env.d.ts
 /dist/
 *.tsbuildinfo
-/desktop/build/
-/desktop/staging/
-/desktop/release/
-/desktop/runtime/node_modules/
 
 # Xcode builds
 /build/
