@@ -7,6 +7,8 @@ nonisolated struct Shortcut: Codable, Equatable, Sendable {
     var modifiers: UInt32   // Carbon: cmdKey, optionKey, controlKey, shiftKey
 
     static let standard = Shortcut(keyCode: UInt32(kVK_ANSI_P), modifiers: UInt32(cmdKey | shiftKey))
+    /// Opens the menu bar panel.
+    static let panelStandard = Shortcut(keyCode: UInt32(kVK_ANSI_P), modifiers: UInt32(cmdKey | shiftKey | optionKey))
 
     init(keyCode: UInt32, modifiers: UInt32) {
         self.keyCode = keyCode

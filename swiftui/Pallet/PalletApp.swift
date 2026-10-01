@@ -76,6 +76,12 @@ final class AppModel {
             MenuBarController.shared?.apply()
         }
     }
+    var panelShortcut: Shortcut? {
+        didSet {
+            UserDefaults.standard.set(panelShortcut.flatMap { try? JSONEncoder().encode($0) }, forKey: "panelShortcut")
+            MenuBarController.shared?.apply()
+        }
+    }
     var copyCSSAfterCapture: Bool { didSet { save("copyCSSAfterCapture", copyCSSAfterCapture) } }
 
     enum SettingsTab: String { case general, capture, keyboard, about }
@@ -107,6 +113,11 @@ final class AppModel {
             captureShortcut = .standard
         } else {
             captureShortcut = d.data(forKey: "captureShortcut").flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }
+        }
+        if d.object(forKey: "panelShortcut") == nil {
+            panelShortcut = .panelStandard
+        } else {
+            panelShortcut = d.data(forKey: "panelShortcut").flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }
         }
         copyCSSAfterCapture = d.bool(forKey: "copyCSSAfterCapture")
     }

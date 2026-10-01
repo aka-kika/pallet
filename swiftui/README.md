@@ -30,8 +30,8 @@ The native Mac version of Pallet. The Electron app in `desktop/` stays the shipp
 
 ## Menu bar capture
 
-- Menu bar icon: click for the panel (Capture Area, Paste Image, recent palettes one click from their CSS), or drop an image on the icon.
-- Capture shortcut (default Shift-Command-P, set in Settings > Capture) picks any area of the screen from any app. The first capture asks for Screen Recording permission.
+- Menu bar icon or Option-Shift-Command-P: the panel (drop, paste or choose an image, Capture Area, recent palettes one click from their CSS). No drop on the icon itself: in macOS 26 dragging to the top edge opens the Spaces bar.
+- Capture shortcut (default Shift-Command-P; both shortcuts set in Settings > Capture) picks any area of the screen from any app. The first capture asks for Screen Recording permission.
 - Settings > Capture: show in Dock, menu bar or both; open at login; save right away; copy CSS after a capture.
 - Code: `Pallet/MenuBar/` (AppKit status item and popover, Carbon hot key, `screencapture -i`).
 

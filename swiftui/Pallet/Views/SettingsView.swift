@@ -64,13 +64,14 @@ struct CaptureSettings: View {
             Toggle("Open at login", isOn: $openAtLogin)
                 .onChange(of: openAtLogin) { MenuBarController.shared?.launchAtLogin = openAtLogin }
             Section {
-                LabeledContent("Capture shortcut") { ShortcutRecorder() }
-                if MenuBarController.shared?.shortcutAvailable == false {
-                    Label("Another app uses this shortcut. Pick a different one.", systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(.orange)
-                }
+                LabeledContent("Capture area") { ShortcutRecorder(shortcut: $model.captureShortcut, other: model.panelShortcut) }
+                if MenuBarController.shared?.shortcutAvailable == false { taken }
+                LabeledContent("Open the panel") { ShortcutRecorder(shortcut: $model.panelShortcut, other: model.captureShortcut) }
+                if MenuBarController.shared?.panelShortcutAvailable == false { taken }
+            } header: {
+                Text("Shortcuts, from any app")
             } footer: {
-                Text("Pick any area of the screen to turn it into a palette. The first capture asks for Screen Recording permission.")
+                Text("Capture picks any area of the screen (the first one asks for Screen Recording). The panel takes a dropped or pasted image.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section {
@@ -84,22 +85,29 @@ struct CaptureSettings: View {
         .formStyle(.grouped)
         .fixedSize(horizontal: false, vertical: true)
     }
+
+    private var taken: some View {
+        Label("Another app uses this shortcut. Pick a different one.", systemImage: "exclamationmark.triangle")
+            .font(.caption).foregroundStyle(.orange)
+    }
 }
 
 /// Click, then press the new shortcut. Esc cancels.
 struct ShortcutRecorder: View {
-    @Environment(AppModel.self) private var model
+    @Binding var shortcut: Shortcut?
+    /// The other Pallet shortcut, which this one may not repeat.
+    var other: Shortcut?
     @State private var recording = false
     @State private var monitor: Any?
 
     var body: some View {
         HStack(spacing: 6) {
-            Button(recording ? "Type shortcut..." : (model.captureShortcut?.display ?? "Record Shortcut")) {
+            Button(recording ? "Type shortcut..." : (shortcut?.display ?? "Record Shortcut")) {
                 recording ? stop() : start()
             }
             .frame(minWidth: 120)
-            if model.captureShortcut != nil && !recording {
-                Button { model.captureShortcut = nil } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }
+            if shortcut != nil && !recording {
+                Button { shortcut = nil } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }
                     .buttonStyle(.plain)
                     .help("No shortcut")
             }
@@ -112,10 +120,9 @@ struct ShortcutRecorder: View {
         MenuBarController.shared?.setRecording(true)
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if event.keyCode == 53 { stop(); return nil }          // Esc
-            if let shortcut = Shortcut(event: event) {
-                model.captureShortcut = shortcut
+            if let new = Shortcut(event: event), new != other {
+                shortcut = new
                 stop()
-                return nil
             }
             return nil
         }
@@ -133,7 +140,7 @@ struct KeyboardSettings: View {
     static let keys = [("Space  or  \u{2318}R", "Shuffle"), ("\u{2190} \u{2192}  or  \u{2318}[ \u{2318}]", "Change main color"), ("\u{2191} \u{2193}", "Next or previous palette"),
                        ("L  or  \u{2318}L", "Lock background"), ("\u{2318}C", "Copy CSS"), ("\u{2318}V", "Paste an image"),
                        ("\u{2318}D", "Add to Favorites"), ("\u{2318}O", "New palette from image"), ("\u{21E7}\u{2318}N", "New collection"),
-                       ("\u{2318}E", "Export theme"), ("\u{2318}\u{232B}", "Delete palette"), ("\u{2318}Z", "Undo"), ("\u{2318}1 to \u{2318}4", "Library sections")]
+                       ("\u{2318}E", "Export theme"), ("\u{21E7}\u{2318}P", "Capture area, from any app"), ("\u{2325}\u{21E7}\u{2318}P", "Open the menu bar panel, from any app"), ("\u{2318}\u{232B}", "Delete palette"), ("\u{2318}Z", "Undo"), ("\u{2318}1 to \u{2318}4", "Library sections")]
 
     var body: some View {
         Form {

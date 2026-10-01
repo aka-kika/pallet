@@ -8,7 +8,10 @@ import FoundationModels
 nonisolated enum Naming {
     static func name(for result: ExtractionResult, fileName: String?) async -> String {
         if let title = result.name?.trimmingCharacters(in: .whitespaces), !title.isEmpty { return String(title.prefix(100)) }
-        if let file = fileName.map(clean), !isGeneric(file) { return String(file.prefix(100)) }
+        if let file = fileName.map(clean), !isGeneric(file) {
+            // "sunset" reads better as "Sunset"; names with their own capitals stay.
+            return String((file == file.lowercased() ? file.capitalized : file).prefix(100))
+        }
         if let suggested = await suggest(result.colors) { return suggested }
         return fromColors(result.colors)
     }

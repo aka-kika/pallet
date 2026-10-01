@@ -2,10 +2,12 @@ import AppKit
 import SwiftUI
 import ServiceManagement
 
-/// The menu bar icon and its panel. Click the icon for the panel, drop an
-/// image on it to read its colors, or press the capture shortcut anywhere to
-/// pick an area of the screen. AppKit so the panel can open by itself after a
-/// capture and the icon can take drops.
+/// The menu bar icon and its panel. Click the icon or press the panel
+/// shortcut for the panel (drop, paste or choose an image there), or press
+/// the capture shortcut anywhere to pick an area of the screen. AppKit so the
+/// panel can open by itself after a capture or a shortcut.
+/// Dropping on the icon itself is left out on purpose: dragging to the top of
+/// the screen opens the Spaces bar in macOS 26 and the icon never sees it.
 @Observable
 final class MenuBarController: NSObject, NSPopoverDelegate {
     enum Phase {
@@ -36,8 +38,10 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     @ObservationIgnored let actions: PaletteActions
     @ObservationIgnored private var item: NSStatusItem?
     @ObservationIgnored private let popover = NSPopover()
-    @ObservationIgnored private lazy var statusDrop = StatusWindowDrop { [weak self] image, name in self?.take(image, name: name) }
     @ObservationIgnored private lazy var hotKey = HotKey { [weak self] in self?.captureArea() }
+    @ObservationIgnored private lazy var panelHotKey = HotKey { [weak self] in self?.panelShortcutPressed() }
+    /// False when another app already owns the panel shortcut.
+    var panelShortcutAvailable = true
 
     init(store: PaletteStore, model: AppModel, actions: PaletteActions) {
         self.store = store
@@ -63,11 +67,18 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         }
         NSApp.setActivationPolicy(model.presence == .menuBar ? .accessory : .regular)
         shortcutAvailable = hotKey.register(model.captureShortcut)
+        panelShortcutAvailable = panelHotKey.register(model.panelShortcut)
     }
 
     /// While the shortcut recorder listens, the old shortcut must not fire.
     func setRecording(_ on: Bool) {
-        if on { hotKey.unregister() } else { shortcutAvailable = hotKey.register(model.captureShortcut) }
+        if on {
+            hotKey.unregister()
+            panelHotKey.unregister()
+        } else {
+            shortcutAvailable = hotKey.register(model.captureShortcut)
+            panelShortcutAvailable = panelHotKey.register(model.panelShortcut)
+        }
     }
 
     private func showIcon() {
@@ -79,13 +90,9 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             image.isTemplate = true
             button.image = image
             button.setAccessibilityLabel("Pallet")
-            let drop = StatusDropView(frame: button.bounds) { [weak self] in self?.toggle() } onDrop: { [weak self] image, name in self?.take(image, name: name) }
-            drop.autoresizingMask = [.width, .height]
-            button.addSubview(drop)
-            // The menu bar sends drags to the button's window, which hands them
-            // to its delegate.
-            button.window?.registerForDraggedTypes([.fileURL, .png, .tiff])
-            button.window?.delegate = statusDrop
+            button.target = self
+            button.action = #selector(statusClicked)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
         self.item = item
     }
@@ -103,6 +110,14 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         case .working: break
         default: phase = .idle
         }
+    }
+
+    @objc private func statusClicked() { toggle() }
+
+    /// The panel shortcut: the panel when the menu bar icon is shown, the
+    /// window otherwise.
+    func panelShortcutPressed() {
+        if item != nil { toggle() } else { openMain() }
     }
 
     func toggle() {
@@ -249,58 +264,6 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         set {
             do { if newValue { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() } } catch {}
         }
-    }
-}
-
-/// Sits on the menu bar button: a click opens the panel, a dropped image or
-/// image file goes straight to color reading.
-final class StatusDropView: NSView {
-    private let onClick: () -> Void
-    private let onDrop: (NSImage, String?) -> Void
-
-    init(frame: NSRect, onClick: @escaping () -> Void, onDrop: @escaping (NSImage, String?) -> Void) {
-        self.onClick = onClick
-        self.onDrop = onDrop
-        super.init(frame: frame)
-        registerForDraggedTypes([.fileURL, .png, .tiff])
-    }
-
-    required init?(coder: NSCoder) { nil }
-
-    override func mouseDown(with event: NSEvent) { onClick() }
-    override func rightMouseDown(with event: NSEvent) { onClick() }
-
-    /// Hovering a drag over the icon opens the panel, so there is a big area
-    /// to drop on (dropping on the icon itself works too).
-    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard NSImage.canInit(with: sender.draggingPasteboard) else { return [] }
-        MenuBarController.shared?.showPanel()
-        return .copy
-    }
-
-    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        guard let (image, name) = pastedImage(sender.draggingPasteboard) else { return false }
-        onDrop(image, name)
-        return true
-    }
-}
-
-/// Drag destination for the menu bar button's window (the window forwards
-/// drag messages to its delegate).
-final class StatusWindowDrop: NSObject, NSWindowDelegate, NSDraggingDestination {
-    private let onDrop: (NSImage, String?) -> Void
-    init(onDrop: @escaping (NSImage, String?) -> Void) { self.onDrop = onDrop }
-
-    func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard NSImage.canInit(with: sender.draggingPasteboard) else { return [] }
-        MenuBarController.shared?.showPanel()   // a bigger place to drop
-        return .copy
-    }
-
-    func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        guard let (image, name) = pastedImage(sender.draggingPasteboard) else { return false }
-        onDrop(image, name)
-        return true
     }
 }
 
