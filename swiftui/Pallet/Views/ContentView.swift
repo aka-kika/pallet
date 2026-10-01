@@ -16,7 +16,7 @@ struct ContentView: View {
         } detail: {
             Canvas()
         }
-        .searchable(text: $model.query, placement: .toolbar, prompt: "Name or color")
+        .searchable(text: $model.query, placement: .sidebar, prompt: "Name or color")
         .frame(minWidth: 640, minHeight: 460)
         .preferredColorScheme(model.colorScheme)
         .onAppear { actions.undoManager = undoManager }
@@ -134,7 +134,7 @@ struct Canvas: View {
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: theme)
         .navigationTitle(model.library.title)
         .navigationSubtitle(active.name)
-        .toolbar { toolbar }
+        .toolbar(id: "canvas") { toolbar }
         .focusable()
         .focusEffectDisabled()
         .focused($focused)
@@ -154,22 +154,43 @@ struct Canvas: View {
         }
     }
 
+    /// Right-click the toolbar (or View > Customize Toolbar) to add, remove or move items.
     @ToolbarContentBuilder
-    private var toolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
-            if model.showShuffleButton {
+    private var toolbar: some CustomizableToolbarContent {
+        if model.showShuffleButton {
+            ToolbarItem(id: "shuffle", placement: .primaryAction) {
                 Button("Shuffle", systemImage: "shuffle", action: actions.shuffle)
                     .help("Shuffle (Space)")
             }
+        }
+        ToolbarItem(id: "lock", placement: .primaryAction) {
             Button(model.bgLock == nil ? "Lock Background" : "Unlock Background", systemImage: model.bgLock == nil ? "lock.open" : "lock.fill") { actions.toggleLock() }
                 .help(model.bgLock.map { "Unlock background \($0)" } ?? "Lock background (L)")
+        }
+        ToolbarItem(id: "favorite", placement: .primaryAction) {
+            Button(active.favorite ? "Remove from Favorites" : "Add to Favorites", systemImage: active.favorite ? "heart.fill" : "heart") { actions.toggleFavorite() }
+                .help("Favorite (\u{2318}D)")
+        }
+        .defaultCustomization(.hidden)
+        ToolbarItem(id: "copy", placement: .primaryAction) {
             Button("Copy CSS", systemImage: "doc.on.doc") { actions.copyCSS() }
                 .help("Copy CSS")
+        }
+        ToolbarItem(id: "export", placement: .primaryAction) {
+            Button("Export Theme", systemImage: "square.and.arrow.down") { model.exporting = active }
+                .help("Export theme (\u{2318}E)")
+        }
+        .defaultCustomization(.hidden)
+        ToolbarItem(id: "share", placement: .primaryAction) {
             ShareLink(item: ThemeFile(palette: active), preview: SharePreview(active.name))
                 .help("Share theme")
         }
-        ToolbarSpacer(.fixed, placement: .primaryAction)
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItem(id: "appearance", placement: .primaryAction) {
+            Button(dark ? "Light Mode" : "Soft Dark Mode", systemImage: dark ? "sun.max" : "moon") { model.appearance = dark ? .light : .dark }
+                .help(dark ? "Switch to light" : "Switch to soft dark")
+        }
+        .defaultCustomization(.hidden)
+        ToolbarItem(id: "new", placement: .primaryAction) {
             Button("New Palette from Image", systemImage: "plus") { model.importing = ImportRequest() }
                 .help("New palette from image")
         }

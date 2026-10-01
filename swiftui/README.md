@@ -25,7 +25,7 @@ The native Mac version of Pallet. The Electron app in `desktop/` stays the shipp
 
 ## Layout (Apple HIG)
 
-- System frame: sidebar (All, Favorites, My Palettes, Starter), toolbar with search, Share and New, standard menus, Undo for every change.
+- System frame: sidebar with search (All, Favorites, My Palettes, Starter), customizable toolbar (right-click it), standard menus, Undo for every change. Search sits in the sidebar: in the toolbar it crashes AppKit when the toolbar is customized (macOS 27.2).
 - Pallet content: the palette-colored canvas, swatch strip, arrows and cards.
 
 ## Keys
