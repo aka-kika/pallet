@@ -18,3 +18,18 @@
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 html:has(.quick-capture),body:has(.quick-capture){height:100%;overflow:hidden}.quick-capture{padding:8px;height:100%;height:100dvh;overflow:hidden;box-sizing:border-box;background:var(--background);color:var(--text);font-family:Arial,sans-serif}.capture-drop{width:100%;height:100%;min-height:0;border:1px dashed var(--focus);border-radius:9px;background:var(--raised);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text);cursor:pointer;overflow:hidden}.capture-drop>svg{width:32px;height:32px;color:var(--highlight-ink)}.capture-drop img{max-height:120px;max-width:90%;object-fit:contain;border-radius:12px;pointer-events:none}.capture-drop span,.capture-settings .helper,.capture-settings .field p{font-size:12px;color:var(--muted-foreground)}.capture-drop>span{max-width:88%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}.capture-drop .capture-swatches{display:flex;width:min(280px,86%);height:36px;flex:none;border-radius:10px;overflow:hidden}.capture-swatches span{flex:1}.imported-mark{display:inline-flex;align-items:center;gap:6px}.imported-mark svg{width:15px;height:15px}.capture-settings{padding-top:12px;display:grid;gap:14px}.capture-checkbox{display:flex;align-items:flex-start;gap:10px;font-size:14px}.capture-checkbox input{width:18px;height:18px;accent-color:var(--highlight)}.quick-capture .capture-settings{padding-top:0}.quick-capture .warning{font-size:12px}.quick-capture .field input{width:100%;padding:8px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px}.quick-capture button:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
 .about{display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px 0 8px}.about img{width:112px;height:112px}.about-name{font-size:15px;font-weight:550;letter-spacing:.08em;color:var(--text)}.about-name span{color:var(--highlight-ink);font-weight:500;letter-spacing:.04em;margin-left:.3em}.about-links{display:flex;gap:6px}.about-links a{color:var(--ui-dim,var(--muted-foreground))}.about-links a:hover{color:var(--text);background:var(--raised)}.about-links svg{width:19px;height:19px}
+
+/* Theme rules (docs/THEME-RULES.md): the main color tints washes, hover,
+   borders and icons; the companion (highlight) marks "on" states. */
+.icon-button:hover,.button:hover,.palette-ctx button:hover,.palette-ctx button:focus-visible,.shortcut-record:hover{background:var(--wash)}
+.top-actions .icon-button,.card-actions .icon-button,.about-links a{color:var(--icon)}
+.top-actions .icon-button:hover,.card-actions .icon-button:hover,.about-links a:hover{color:var(--link);background:var(--wash)}
+.filled,.rotation .icon-button{background:var(--wash);color:var(--link)}
+.filled:hover,.rotation .icon-button:hover{background:var(--hover)}
+.keyboard-bar kbd{background:var(--wash)}
+.collection-tools button{color:var(--link)}
+.fav-toggle[aria-pressed=true],.bg-lock[aria-pressed=true],.card-actions button[aria-pressed=true],.card-actions button[aria-pressed=true] svg,.card-actions .icon-button[title=Favorite]:hover{color:var(--highlight-ink)}
+.card-palette:hover{outline-color:var(--link)}
+.app-shell,.app-shell *,.palette-ctx,.palette-ctx *,[data-slot=dialog-content],[data-slot=dialog-content] *{transition-property:background-color,color,border-color,outline-color,fill,flex,translate;transition-duration:.28s;transition-timing-function:ease}
+body{transition:background-color .28s ease}
+.app-shell .main-swatch{transition-duration:.32s;transition-timing-function:cubic-bezier(.22,1,.36,1)}

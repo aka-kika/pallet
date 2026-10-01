@@ -1,14 +1,15 @@
 // Contrast check for palette-derived UI themes.
 // For every seed palette, every main color (as arrow keys rotate), light and
 // soft dark, lock off and on: every text color must reach 4.5:1 against every
-// surface it can sit on (background, surface, raised); focus rings 3:1.
+// surface it can sit on (background, surface, raised, wash, hover); focus
+// rings and icons 3:1.
 // Prints each failure as: palette, main color, mode, pair, ratio. Exits 1 on failure.
 const m = await import('../lib/palettes.ts');
 
 const { seeds, theme, withLockedBackground, contrast } = m;
 
 const TEXT_45 = ['text', 'muted', 'highlight-ink', 'link', 'success', 'warning', 'danger', 'text-soft', 'text-dim'];
-const SURFACES = ['background', 'surface', 'raised'];
+const SURFACES = ['background', 'surface', 'raised', 'wash', 'hover'];
 const ON_PAIRS = [
   ['on-accent', 'accent'],
   ['on-highlight', 'highlight'],
@@ -33,7 +34,7 @@ for (const seed of seeds) {
             }
           }
         }
-        for (const fg of ['focus', 'ui-dim']) {
+        for (const fg of ['focus', 'ui-dim', 'icon']) {
           for (const bg of SURFACES) {
             const r = contrast(t[fg], t[bg]);
             if (r < 3) {
