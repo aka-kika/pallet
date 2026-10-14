@@ -183,9 +183,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             if model.autoImportOnDrop {
                 Task {
                     do {
-                        let p = try await ImportSheet.quickPalette(from: image, fileName: name)
-                        actions.add(p)
-                        if model.copyCSSAfterCapture { copyToPasteboard(ThemeExport.css(p)) }
+                        actions.addFromImage(try await ImportSheet.quickPalette(from: image, fileName: name))
                     } catch {
                         model.show(error.localizedDescription)
                     }
@@ -223,8 +221,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         }
         let p = Palette(id: Palette.newID(), name: String(r.name.trimmingCharacters(in: .whitespaces).prefix(100)), colors: r.colors, main: 0, favorite: false, source: source)
         guard p.isValid else { phase = .failed("This palette could not be saved."); return }
-        actions.add(p)
-        if model.copyCSSAfterCapture { copyToPasteboard(ThemeExport.css(p)) }
+        actions.addFromImage(p)
         r.saved = p
         phase = .result(r)
     }
@@ -249,11 +246,18 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     }
 
     /// Screen Recording applies only to a fresh launch of the app.
+    /// The global shortcuts are let go first, so the new copy can take them.
     func relaunch() {
+        hotKey.unregister()
+        panelHotKey.unregister()
         let config = NSWorkspace.OpenConfiguration()
         config.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: config) { _, _ in
-            DispatchQueue.main.async { NSApp.terminate(nil) }
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: config) { app, _ in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    if app != nil { NSApp.terminate(nil) } else { MenuBarController.shared?.setRecording(false) }   // didn't open: keep the shortcuts
+                }
+            }
         }
     }
 
@@ -289,6 +293,11 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         MenuBarController.shared?.apply()
+    }
+
+    /// Edits made in place to the collection files don't reach the folder watcher.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        MenuBarController.shared?.store.recheck()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }

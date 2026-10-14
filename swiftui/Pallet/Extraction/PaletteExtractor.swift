@@ -97,8 +97,12 @@ nonisolated enum PaletteExtractor {
         }
       }
       let colors = unique(kept.map { printed($0.color) ?? $0.color })
-      let name = text.title(palette: colors, in: bitmap)
-      return ExtractionResult(colors: colors.prefix(8).map(\.hex), name: name, kind: .paletteGraphic)
+      // Swatches that snap to one printed code leave a single color: not a
+      // palette card after all, so read it as a screenshot or photo below.
+      if colors.count >= 2 {
+        let name = text.title(palette: colors, in: bitmap)
+        return ExtractionResult(colors: colors.prefix(8).map(\.hex), name: name, kind: .paletteGraphic)
+      }
     }
 
     // UI fills are flat (spread well under 3 even with a faint noise or gradient);

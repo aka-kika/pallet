@@ -1,10 +1,7 @@
-import {extract} from './extract';
+import {extract,looksLikeImage} from './extract';
 import type {Palette} from './palettes';
 import {titleFromFile} from './name';
 
-function looksLikeImage(file:File){
- return file.type.startsWith('image/')||/\.(png|jpe?g|gif|webp|avif|bmp|heic|heif)$/i.test(file.name);
-}
 export function imageFile(transfer:DataTransfer|null):File|null {
  if(!transfer)return null;
  for(const item of Array.from(transfer.items||[])){

@@ -33,9 +33,12 @@ struct GeneralSettings: View {
             Toggle("Show Shuffle button", isOn: $model.showShuffleButton)
             Section {
                 TextField("Background lock", text: $lockField, prompt: Text("#F4F1EA"))
-                    .onSubmit {
-                        if lockField.trimmingCharacters(in: .whitespaces).isEmpty { model.bgLock = nil } else if let hex = ColorMath.parseHex(lockField) { model.bgLock = hex }
-                        lockField = model.bgLock ?? ""
+                    .onSubmit(commitLock)
+                    // Saved as you type once it is empty or a full color, so closing
+                    // Settings or switching tabs keeps it without Return.
+                    .onChange(of: lockField) {
+                        let t = lockField.trimmingCharacters(in: .whitespaces)
+                        if t.isEmpty { model.bgLock = nil } else if t.replacingOccurrences(of: "#", with: "").count == 6, let hex = ColorMath.parseHex(t) { model.bgLock = hex }
                     }
             } footer: {
                 Text("A hex color keeps the page background fixed while palettes change. Leave empty to unlock.")
@@ -45,7 +48,17 @@ struct GeneralSettings: View {
         .formStyle(.grouped)
         .fixedSize(horizontal: false, vertical: true)
         .onAppear { lockField = model.bgLock ?? "" }
-        .onChange(of: model.bgLock) { lockField = model.bgLock ?? "" }
+        .onDisappear(perform: commitLock)
+        // Changed elsewhere (the lock button): show it, but don't rewrite what is being typed.
+        .onChange(of: model.bgLock) {
+            let typed = lockField.trimmingCharacters(in: .whitespaces)
+            if (typed.isEmpty ? nil : ColorMath.parseHex(typed)) != model.bgLock { lockField = model.bgLock ?? "" }
+        }
+    }
+
+    private func commitLock() {
+        if lockField.trimmingCharacters(in: .whitespaces).isEmpty { model.bgLock = nil } else if let hex = ColorMath.parseHex(lockField) { model.bgLock = hex }
+        lockField = model.bgLock ?? ""
     }
 }
 

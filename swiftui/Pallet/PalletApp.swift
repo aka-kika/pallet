@@ -91,7 +91,8 @@ final class AppModel {
 
     func combo(_ command: AppCommand) -> KeyCombo? {
         guard let k = keyCombos[command.rawValue] else { return command.standard }
-        return k.key.isEmpty ? nil : k
+        if k.key.isEmpty { return nil }
+        return k.isValid ? k : command.standard   // a broken stored value falls back, never crashes
     }
 
     func setCombo(_ combo: KeyCombo?, for command: AppCommand) {
@@ -108,6 +109,8 @@ final class AppModel {
     var query = ""
 
     var importing: ImportRequest?
+    /// An image pasted (Command-V) while New Palette from Image is open.
+    var pastedIntoImport: ImportRequest?
     var exporting: Palette?
     var pendingDelete: Palette?
     var toast: Toast?
@@ -210,9 +213,15 @@ final class PaletteActions {
         }
         let q = model.query.trimmingCharacters(in: .whitespaces).lowercased()
         if !q.isEmpty {
+            // "#3b8" matches from the start of a color, "82f6" anywhere in it.
+            let digits = q.hasPrefix("#") ? String(q.dropFirst()) : q
+            let hexQuery = digits.count >= 3 && digits.allSatisfy(\.isHexDigit)
             list = list.filter { p in
                 p.name.lowercased().contains(q)
-                    || p.colors.contains { $0.lowercased().contains(q.hasPrefix("#") ? q : "#" + q) && q.count >= 3 }
+                    || (hexQuery && p.colors.contains { c in
+                        let h = c.dropFirst().lowercased()
+                        return q.hasPrefix("#") ? h.hasPrefix(digits) : h.contains(digits)
+                    })
                     || p.colors.contains { Naming.word($0).lowercased().hasPrefix(q) }
             }
         }
@@ -283,6 +292,13 @@ final class PaletteActions {
         guard var q = p ?? active else { return }
         q.favorite.toggle()
         commit(q.id, to: q, q.favorite ? "Favorite" : "Remove Favorite")
+    }
+
+    /// A palette made from an image the user just dropped, pasted, captured or
+    /// chose: added, and its CSS copied when Settings asks for it.
+    func addFromImage(_ p: Palette) {
+        add(p)
+        if model.copyCSSAfterCapture, store.palettes.contains(where: { $0.id == p.id }) { copyToPasteboard(ThemeExport.css(p)) }
     }
 
     func add(_ p: Palette) {
@@ -404,7 +420,10 @@ final class PaletteActions {
 
     func pasteImage() {
         guard let (image, name) = pastedImage(.general) else { model.show("No image on the clipboard."); return }
-        model.importing = ImportRequest(image: image, fileName: name)
+        guard model.autoImportOnDrop else { model.importing = ImportRequest(image: image, fileName: name); return }
+        Task {
+            do { addFromImage(try await ImportSheet.quickPalette(from: image, fileName: name)) } catch { model.show(error.localizedDescription) }
+        }
     }
 
     func exportCollection() {
@@ -430,9 +449,7 @@ final class PaletteActions {
                   let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let items = root["palettes"] as? [Any], items.count <= 1000 else { throw CocoaError(.fileReadCorruptFile) }
             // Read what can be read; one odd entry doesn't spoil the file.
-            let list = items.compactMap { item in
-                (try? JSONSerialization.data(withJSONObject: item)).flatMap { try? JSONDecoder().decode(Palette.self, from: $0) }
-            }.filter(\.isValid)
+            let list = items.compactMap { decodeEntry(Palette.self, from: $0) }.filter(\.isValid)
             guard !list.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
             let before = store.snapshot()
             let (added, replaced) = store.put(contentsOf: list)
@@ -508,7 +525,16 @@ struct PalletCommands: Commands {
             }
             .keyboardShortcut("c")
             Button("Paste") {
-                if editingText { NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil) } else { actions.pasteImage() }
+                if NSApp.keyWindow?.firstResponder is NSText {
+                    NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+                } else if model.importing != nil {
+                    // New Palette from Image is open: the image goes into it.
+                    if let (image, name) = pastedImage(.general) { model.pastedIntoImport = ImportRequest(image: image, fileName: name) } else { NSSound.beep() }
+                } else if editingText {
+                    NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+                } else {
+                    actions.pasteImage()
+                }
             }
             .keyboardShortcut("v")
             Button("Select All") { NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) }
@@ -563,7 +589,8 @@ struct PalletCommands: Commands {
 /// both the file and its Finder icon: the file wins, so we read the photo,
 /// not the JPG icon.
 func pastedImage(_ pb: NSPasteboard) -> (NSImage, String?)? {
-    if let urls = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] {
+    // An empty list means no files (a copied screenshot or web image): read the image data below.
+    if let urls = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
         for url in urls {
             if let image = NSImage(contentsOf: url) { return (image, url.deletingPathExtension().lastPathComponent) }
         }

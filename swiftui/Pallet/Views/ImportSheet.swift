@@ -7,6 +7,7 @@ struct ImportSheet: View {
     let request: ImportRequest
     let onSave: (Palette) -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppModel.self) private var model
 
     @State private var image: NSImage?
     @State private var fileName: String?
@@ -61,6 +62,12 @@ struct ImportSheet: View {
             if image != nil { run() }
         }
         .onPasteCommand(of: [.image, .png, .tiff, .fileURL]) { providers in load(providers) }
+        // Command-V from the Edit menu (see PalletCommands).
+        .onChange(of: model.pastedIntoImport?.id) {
+            guard let pasted = model.pastedIntoImport, let img = pasted.image else { return }
+            model.pastedIntoImport = nil
+            take(img, name: pasted.fileName)
+        }
     }
 
     private var kindLabel: String {

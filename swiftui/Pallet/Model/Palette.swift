@@ -22,6 +22,13 @@ nonisolated struct Palette: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
+/// One entry of a JSON list read as T. Only objects are tried: re-encoding a
+/// bare string or number raises an exception and would crash the app.
+nonisolated func decodeEntry<T: Decodable>(_ type: T.Type, from item: Any) -> T? {
+    guard item is [String: Any], let data = try? JSONSerialization.data(withJSONObject: item) else { return nil }
+    return try? JSONDecoder().decode(T.self, from: data)
+}
+
 extension JSONEncoder {
     nonisolated static var pallet: JSONEncoder {
         let e = JSONEncoder()
@@ -47,15 +54,22 @@ final class PaletteStore {
     private let builtins: [Palette]
     private let directory: URL
     private var saved: [Palette] = []
-    /// palettes.json entries this app can't read, kept as they are.
+    /// Entries this app can't read, kept as they are, one list per file.
     @ObservationIgnored private var foreign: [Any] = []
+    @ObservationIgnored private var hiddenForeign: [Any] = []
+    @ObservationIgnored private var collectionsForeign: [Any] = []
+    /// The objects as read, by id, so fields this app doesn't know survive a save.
+    @ObservationIgnored private var rawPalettes: [String: [String: Any]] = [:]
+    @ObservationIgnored private var rawCollections: [String: [String: Any]] = [:]
     private var hidden: [String] = []
     /// Files that exist but could not be read. Pallet never writes these.
     private var locked: Set<String> = []
-    /// Modification dates seen at the last load or write, so the watcher only
-    /// reloads on real outside changes.
-    private var stamps: [String: Date] = [:]
+    /// Modification date and size seen at the last load or write, so the
+    /// watcher only reloads on real outside changes.
+    private struct Stamp: Equatable { var date: Date; var size: Int }
+    private var stamps: [String: Stamp] = [:]
     private var watcher: DispatchSourceFileSystemObject?
+    @ObservationIgnored private var pendingReload: DispatchWorkItem?
 
     init() {
         let url = Bundle.main.url(forResource: "builtin-palettes", withExtension: "json")
@@ -87,33 +101,49 @@ final class PaletteStore {
         locked = []
         saved = []
         foreign = []
+        rawPalettes = [:]
         switch readArray(file) {
         case .missing: break
         case .unreadable: lock(file)
         case .ok(let items):
             for item in items {
-                if let data = try? JSONSerialization.data(withJSONObject: item),
-                   let p = try? JSONDecoder().decode(Palette.self, from: data), p.isValid,
+                if let p = decodeEntry(Palette.self, from: item), p.isValid,
                    !saved.contains(where: { $0.id == p.id }) {
                     saved.append(p)
+                    rawPalettes[p.id] = item as? [String: Any]
                 } else {
                     foreign.append(item)
                 }
             }
         }
+        hidden = []
+        hiddenForeign = []
         switch readArray(hiddenFile) {
-        case .ok(let items): hidden = items.compactMap { $0 as? String }
-        case .missing: hidden = []
-        case .unreadable: hidden = []; lock(hiddenFile)
+        case .ok(let items):
+            for item in items {
+                if let id = item as? String { hidden.append(id) } else { hiddenForeign.append(item) }
+            }
+        case .missing: break
+        case .unreadable: lock(hiddenFile)
         }
+        var list: [PaletteCollection] = []
+        collectionsForeign = []
+        rawCollections = [:]
         switch readArray(collectionsFile) {
         case .ok(let items):
-            collections = items.compactMap { item in
-                (try? JSONSerialization.data(withJSONObject: item)).flatMap { try? JSONDecoder().decode(PaletteCollection.self, from: $0) }
+            for item in items {
+                if let c = decodeEntry(PaletteCollection.self, from: item),
+                   !list.contains(where: { $0.id == c.id }) {
+                    list.append(c)
+                    rawCollections[c.id] = item as? [String: Any]
+                } else {
+                    collectionsForeign.append(item)
+                }
             }
-        case .missing: collections = []
-        case .unreadable: collections = []; lock(collectionsFile)
+        case .missing: break
+        case .unreadable: lock(collectionsFile)
         }
+        collections = list
         loadError = lockedMessage
         stamp()
         let order = Dictionary(uniqueKeysWithValues: builtins.enumerated().map { ($1.id, $0) })
@@ -204,10 +234,12 @@ final class PaletteStore {
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             if !locked.contains(file.path) {
-                let own = try JSONSerialization.jsonObject(with: JSONEncoder().encode(saved)) as? [Any] ?? []
+                let own = try merged(saved, into: rawPalettes, id: \.id)
                 try atomic(JSONSerialization.data(withJSONObject: own + foreign, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]), to: file)
             }
-            if !locked.contains(hiddenFile.path) { try atomic(JSONEncoder.pallet.encode(hidden), to: hiddenFile) }
+            if !locked.contains(hiddenFile.path) {
+                try atomic(JSONSerialization.data(withJSONObject: hidden + hiddenForeign, options: [.prettyPrinted, .withoutEscapingSlashes]), to: hiddenFile)
+            }
             stamp()
             loadError = lockedMessage
         } catch {
@@ -221,10 +253,20 @@ final class PaletteStore {
         guard !locked.contains(collectionsFile.path) else { loadError = lockedMessage; return }
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            try atomic(JSONEncoder.pallet.encode(list), to: collectionsFile)
+            let own = try merged(list, into: rawCollections, id: \.id)
+            try atomic(JSONSerialization.data(withJSONObject: own + collectionsForeign, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]), to: collectionsFile)
             stamp()
         } catch {
             loadError = "Collections not saved. Your change is still visible."
+        }
+    }
+
+    /// Each item as JSON, laid over the object it was read from, so fields
+    /// this app doesn't know (written by a newer version or the web app) stay.
+    private func merged<T: Encodable>(_ items: [T], into raw: [String: [String: Any]], id: (T) -> String) throws -> [Any] {
+        let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(items)) as? [[String: Any]] ?? []
+        return zip(items, encoded).map { item, own in
+            raw[id(item)].map { $0.merging(own) { _, new in new } } ?? own
         }
     }
 
@@ -238,12 +280,45 @@ final class PaletteStore {
         }
     }
 
-    private func modified(_ url: URL) -> Date? {
-        (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
+    private func current(_ url: URL) -> Stamp? {
+        guard let a = try? FileManager.default.attributesOfItem(atPath: url.path), let date = a[.modificationDate] as? Date else { return nil }
+        return Stamp(date: date, size: (a[.size] as? NSNumber)?.intValue ?? 0)
     }
 
     private func stamp() {
-        stamps = Dictionary(uniqueKeysWithValues: files.compactMap { url in modified(url).map { (url.path, $0) } })
+        stamps = Dictionary(uniqueKeysWithValues: files.compactMap { url in current(url).map { (url.path, $0) } })
+    }
+
+    /// Reload if one of the files changed since the last load or write, for
+    /// edits made in place, which the folder watcher doesn't see.
+    func recheck() {
+        if files.contains(where: { current($0) != stamps[$0.path] }) { reloadSoon() }
+    }
+
+    /// A sync tool or editor may save in several steps (empty the file, then
+    /// fill it; or delete it, then write a new one). Wait for the writes to
+    /// settle, and give a file that looks half written or gone a few more
+    /// tries before treating it as unreadable or deleted.
+    private func reloadSoon(attempt: Int = 0) {
+        pendingReload?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let changed = self.files.filter { self.current($0) != self.stamps[$0.path] }
+                guard !changed.isEmpty else { return }
+                let unsettled = changed.contains { url in
+                    switch self.readArray(url) {
+                    case .unreadable: true
+                    case .missing: self.stamps[url.path] != nil   // was there before
+                    case .ok: false
+                    }
+                }
+                if unsettled && attempt < 4 { self.reloadSoon(attempt: attempt + 1); return }
+                self.load()
+            }
+        }
+        pendingReload = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + (attempt == 0 ? 0.3 : 0.6), execute: work)
     }
 
     /// Reload when something else (the web app's export, a sync, a hand edit)
@@ -254,11 +329,7 @@ final class PaletteStore {
         guard fd >= 0 else { return }
         let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: .write, queue: .main)
         source.setEventHandler { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                let changed = self.files.contains { self.modified($0) != self.stamps[$0.path] }
-                if changed { self.load() }
-            }
+            MainActor.assumeIsolated { self?.recheck() }
         }
         source.setCancelHandler { close(fd) }
         source.resume()

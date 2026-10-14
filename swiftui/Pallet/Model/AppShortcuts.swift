@@ -55,7 +55,10 @@ nonisolated struct KeyCombo: Codable, Equatable, Sendable {
         "left": (.leftArrow, "\u{2190}"), "right": (.rightArrow, "\u{2192}"), "up": (.upArrow, "\u{2191}"), "down": (.downArrow, "\u{2193}"),
     ]
 
-    var keyEquivalent: KeyEquivalent { KeyCombo.special[key]?.0 ?? KeyEquivalent(Character(key)) }
+    /// One character or a special key name; anything else (a hand-edited
+    /// setting) is ignored instead of crashing the menus.
+    var isValid: Bool { KeyCombo.special[key] != nil || key.count == 1 }
+    var keyEquivalent: KeyEquivalent { KeyCombo.special[key]?.0 ?? KeyEquivalent(key.first ?? " ") }
     var eventModifiers: EventModifiers { EventModifiers(rawValue: modifiers) }
 
     var display: String {

@@ -28,7 +28,7 @@ struct ContentView: View {
         }
         .task { await Task.detached(priority: .utility) { PaletteExtractor.warmUp() }.value }
         .sheet(item: $model.importing) { request in
-            ImportSheet(request: request) { actions.add($0) }
+            ImportSheet(request: request) { actions.addFromImage($0) }
         }
         .sheet(item: $model.exporting) { ExportSheet(palette: $0) }
         .alert("Rename Collection", isPresented: Binding(get: { model.renaming != nil }, set: { if !$0 { model.renaming = nil } })) {
@@ -243,6 +243,9 @@ struct Canvas: View {
         .focusEffectDisabled()
         .focused($focused)
         .onAppear { focused = true }
+        // After a click in the sidebar or on the color slider, Space, arrows and L work on palettes again.
+        .onChange(of: model.sidebar) { focused = true }
+        .onChange(of: model.colorFilter) { focused = true }
         .onKeyPress(phases: .down, action: key)
         .onDrop(of: [.image, .fileURL], isTargeted: $dropping, perform: drop)
     }
@@ -350,7 +353,7 @@ struct Canvas: View {
     private func receive(_ image: NSImage, name: String?) {
         guard model.autoImportOnDrop else { model.importing = ImportRequest(image: image, fileName: name); return }
         Task {
-            do { actions.add(try await ImportSheet.quickPalette(from: image, fileName: name)) } catch { model.show(error.localizedDescription) }
+            do { actions.addFromImage(try await ImportSheet.quickPalette(from: image, fileName: name)) } catch { model.show(error.localizedDescription) }
         }
     }
 }
