@@ -291,5 +291,6 @@ nonisolated enum ThemeExport {
 
     static func json(_ p: Palette) -> String { json(object(p)) }
 
-    static func collection(_ list: [Palette]) -> String { json(["version": 1, "palettes": list.map(object)] as [String: Any]) }
+    /// The same plain list as palettes.json, plus each palette's light and dark theme.
+    static func collection(_ list: [Palette]) -> String { json(list.map(object)) }
 }

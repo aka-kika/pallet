@@ -19,7 +19,7 @@ To try changes without touching your collection, launch with a copy: `open Palle
 
 ## Data
 
-- `~/Library/Application Support/Palette/palettes.json`: your palettes (same format as the web app and the old Electron app).
+- `~/Library/Application Support/Palette/palettes.json`: your palettes, a JSON list (same format as the web app and the old Electron app). Export Collection writes the same list, with each palette's light and dark theme added; Import Collection reads it, and also reads exports from before 2.0.3 (`{"version": 1, "palettes": [...]}`).
 - `hidden.json`: built-in palettes you deleted.
 - `collections.json`: your collections (Mac only).
 - If a file can't be read, Pallet copies it aside as `*.unreadable-<date>.json` and never writes over it. Entries it doesn't understand are kept as they are.

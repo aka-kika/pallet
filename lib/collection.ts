@@ -4,7 +4,7 @@
 //   collection.json (written by scripts/pallet-publish.mjs); a visitor's own
 //   palettes and changes stay in their browser (localStorage) and never
 //   reach anyone else.
-import {seeds,validPalette,type Palette} from './palettes';
+import {seeds,validPalette,paletteEntries,type Palette} from './palettes';
 
 export type CollectionSource={
  load:()=>Promise<Palette[]>;
@@ -47,7 +47,7 @@ export function siteSource(collectionUrl:string):CollectionSource{
    try{
     const r=await fetch(collectionUrl,{cache:'no-cache'});
     const j=r.ok?await r.json():null;
-    const list=Array.isArray(j?.palettes)?j.palettes.filter(validPalette):[];
+    const list=(paletteEntries(j)??[]).filter(validPalette);
     if(list.length)published=list;
    }catch{}
    const local=readLocal();
@@ -59,7 +59,9 @@ export function siteSource(collectionUrl:string):CollectionSource{
   async put(p){
    if(!validPalette(p))return false;
    const l=readLocal();
-   return writeLocal({saved:[...l.saved.filter(x=>x.id!==p.id),p],hidden:l.hidden.filter(id=>id!==p.id)});
+   // An edit keeps its place; only a new palette goes to the end.
+   const saved=l.saved.some(x=>x.id===p.id)?l.saved.map(x=>x.id===p.id?p:x):[...l.saved,p];
+   return writeLocal({saved,hidden:l.hidden.filter(id=>id!==p.id)});
   },
   async remove(id){
    const l=readLocal();

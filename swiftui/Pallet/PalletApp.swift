@@ -446,8 +446,7 @@ final class PaletteActions {
         do {
             let data = try Data(contentsOf: url)
             guard data.count < 2_000_000,
-                  let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let items = root["palettes"] as? [Any], items.count <= 1000 else { throw CocoaError(.fileReadCorruptFile) }
+                  let items = paletteEntries(try JSONSerialization.jsonObject(with: data)), items.count <= 1000 else { throw CocoaError(.fileReadCorruptFile) }
             // Read what can be read; one odd entry doesn't spoil the file.
             let list = items.compactMap { decodeEntry(Palette.self, from: $0) }.filter(\.isValid)
             guard !list.isEmpty else { throw CocoaError(.fileReadCorruptFile) }

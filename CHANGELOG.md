@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.3 (2026-10-14)
+
+Two more fixes from the code review. Nothing to move or set up.
+
+- Export Collection now writes the same format as `palettes.json`: a plain list of palettes (each with its light and dark theme added). Import Collection reads both that and files exported before 2.0.3, so your old exports still work, and you can import a copy of `palettes.json` directly.
+- Web: a deleted starter palette stays deleted after a reload, and editing a palette (main color, favorite) no longer moves it to another place in the collection.
+
 ## 2.0.2 (2026-10-14)
 
 Fixes from a code review. Nothing to move or set up.

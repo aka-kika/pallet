@@ -29,6 +29,13 @@ nonisolated func decodeEntry<T: Decodable>(_ type: T.Type, from item: Any) -> T?
     return try? JSONDecoder().decode(T.self, from: data)
 }
 
+/// The palette list in a collection file: a plain list, as palettes.json and
+/// Export Collection write it, or {"palettes": [...]}, as exports before 2.0.3 did.
+nonisolated func paletteEntries(_ root: Any) -> [Any]? {
+    if let list = root as? [Any] { return list }
+    return (root as? [String: Any])?["palettes"] as? [Any]
+}
+
 extension JSONEncoder {
     nonisolated static var pallet: JSONEncoder {
         let e = JSONEncoder()
@@ -91,9 +98,10 @@ final class PaletteStore {
 
     private enum Read { case missing, ok([Any]), unreadable }
 
-    private func readArray(_ url: URL) -> Read {
+    private func readArray(_ url: URL, entries: (Any) -> [Any]? = { $0 as? [Any] }) -> Read {
         guard FileManager.default.fileExists(atPath: url.path) else { return .missing }
-        guard let data = try? Data(contentsOf: url), let list = try? JSONSerialization.jsonObject(with: data) as? [Any] else { return .unreadable }
+        guard let data = try? Data(contentsOf: url), let root = try? JSONSerialization.jsonObject(with: data),
+              let list = entries(root) else { return .unreadable }
         return .ok(list)
     }
 
@@ -102,7 +110,7 @@ final class PaletteStore {
         saved = []
         foreign = []
         rawPalettes = [:]
-        switch readArray(file) {
+        switch readArray(file, entries: paletteEntries) {
         case .missing: break
         case .unreadable: lock(file)
         case .ok(let items):
