@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.0.2 (2026-10-14)
+
+Fixes from a code review. Nothing to move or set up.
+
+- Your collection is safer. When a sync tool or editor saves `palettes.json`, `hidden.json` or `collections.json` in several steps, Pallet waits for it to finish instead of reading a half-written file and refusing to touch it for the rest of the session. It also checks the files again when you come back to the app.
+- Entries and fields Pallet doesn't know are now really kept when it saves, in all three files, as promised.
+- A collection file with a plain text entry in it no longer crashes Pallet at launch.
+- Pasting a copied image (a screenshot or an image copied from a web page) works again; before, only copied image files did. Command-V also works inside New Palette from Image.
+- **Save new palettes right away** now covers pasted images too, and **Copy CSS after saving a capture** works however the palette was made from an image.
+- Quit & Reopen after granting Screen Recording keeps the global shortcuts working.
+- Space, the arrow keys and L work right after a click in the sidebar or on the color slider.
+- The Background lock field in Settings keeps what you typed without pressing Return.
+- Searching a hex code without `#` finds it anywhere in a color (`82f6` finds `#3B82F6`).
+- A palette card that reads as a single color is now read as a screenshot or photo instead of giving a palette that can't be saved.
+- A damaged keyboard shortcut setting no longer crashes the menus.
+- Web: images the browser can't read (HEIC outside Safari, for example) get a clear message, and files with a missing type are tried instead of refused.
+
 ## 2.0 (2026-10-01)
 
 Pallet for Mac is now a native SwiftUI app (`swiftui/`), 4.4 MB instead of 295 MB. It reads the same collection, so nothing needs moving. The Electron app (`desktop/`) is retired on the Mac.
