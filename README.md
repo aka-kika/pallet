@@ -48,6 +48,12 @@ The colors come straight from the swatches; the tulip photo behind the cards is 
 
 Download **[Pallet 2.0.3](https://github.com/aka-kika/pallet/releases/latest)** (macOS 26 or newer), unzip, and move Pallet.app to Applications. It is signed with Developer ID and notarized by Apple. What changed: [CHANGELOG.md](CHANGELOG.md).
 
+Or with Homebrew:
+
+```sh
+brew install --cask aka-kika/tap/pallet
+```
+
 ## Build
 
 Build with Xcode 27.2 or newer on macOS 26 or newer. See **[docs/mac.md](docs/mac.md)**.
