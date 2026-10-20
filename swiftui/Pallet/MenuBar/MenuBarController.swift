@@ -145,7 +145,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             // The system prompt only once per launch; after that, the panel explains.
             if !askedForPermission { askedForPermission = true; CGRequestScreenCaptureAccess() }
             phase = .needsPermission
-            showPanel()
+            explain()
             return
         }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("pallet-capture-\(UUID().uuidString).png")
@@ -161,7 +161,34 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
                 }
             }
         }
-        do { try process.run() } catch { phase = .failed("Screen capture could not start."); showPanel() }
+        do { try process.run() } catch { phase = .failed("Screen capture could not start."); explain() }
+    }
+
+    /// A capture problem: in the panel, or in Dock-only mode (no panel) as an
+    /// alert over the window.
+    private func explain() {
+        guard item == nil else { showPanel(); return }
+        let problem = phase
+        phase = .idle
+        openMain()
+        let alert = NSAlert()
+        switch problem {
+        case .needsPermission:
+            alert.messageText = "Pallet needs Screen Recording to read colors from the screen."
+            alert.informativeText = "Turn on Pallet in System Settings > Privacy & Security > Screen Recording. macOS applies it after Pallet restarts."
+            alert.addButton(withTitle: "Open Settings")
+            alert.addButton(withTitle: "Quit & Reopen")
+            alert.addButton(withTitle: "Cancel")
+            switch alert.runModal() {
+            case .alertFirstButtonReturn: openScreenRecordingSettings()
+            case .alertSecondButtonReturn: relaunch()
+            default: break
+            }
+        case .failed(let message):
+            alert.messageText = message
+            alert.runModal()
+        default: break
+        }
     }
 
     func chooseImage() {
