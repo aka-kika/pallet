@@ -239,16 +239,14 @@ final class PaletteActions {
     // MARK: Undoable changes
 
     /// Replace (or with nil remove) one palette and register the way back.
+    /// Says so when the change could not be saved.
     @discardableResult
-    private func commit(_ id: String, to new: Palette?, _ name: String) -> Bool {
+    private func commit(_ id: String, to new: Palette?, _ name: String) -> PaletteStore.Save {
         let old = store.palettes.first { $0.id == id }
         let index = store.palettes.firstIndex { $0.id == id }
         let selected = model.selectedID
-        if let new {
-            guard store.put(new, at: index) else { return false }
-        } else {
-            store.remove(id)
-        }
+        let result = if let new { store.put(new, at: index) } else { store.remove(id) }
+        guard result != .invalid else { return result }
         undoManager?.registerUndo(withTarget: store) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -256,7 +254,12 @@ final class PaletteActions {
             }
         }
         undoManager?.setActionName(name)
-        return true
+        if result == .notSaved { showNotSaved() }
+        return result
+    }
+
+    private func showNotSaved() {
+        model.show("Not saved", detail: store.loadError)
     }
 
     private func restore(_ id: String, to old: Palette?, at index: Int?, redo new: Palette?, selected: String, _ name: String) {
@@ -288,32 +291,38 @@ final class PaletteActions {
 
     /// A palette made from an image the user just dropped, pasted, captured or
     /// chose: added, and its CSS copied when Settings asks for it.
-    func addFromImage(_ p: Palette) {
-        add(p)
+    @discardableResult
+    func addFromImage(_ p: Palette) -> PaletteStore.Save {
+        let result = add(p)
         if model.copyCSSAfterCapture, store.palettes.contains(where: { $0.id == p.id }) { copyToPasteboard(ThemeExport.css(p)) }
+        return result
     }
 
-    func add(_ p: Palette) {
-        guard commit(p.id, to: p, "Add Palette") else { model.show("This palette could not be saved.", detail: "It needs a name and at least 2 colors."); return }
+    @discardableResult
+    func add(_ p: Palette) -> PaletteStore.Save {
+        let result = commit(p.id, to: p, "Add Palette")
+        guard result != .invalid else { model.show("This palette could not be saved.", detail: "It needs a name and at least 2 colors."); return result }
         model.selectedID = p.id
         if let c = currentCollection {
-            addToCollection(p.id, c.id)
+            // A palette that isn't in the file can't go in a collection either.
+            if result == .saved { addToCollection(p.id, c.id) }
         } else if model.library == .starter || (model.library == .favorites && !p.favorite) {
             model.library = .all
         }
-        model.show("Palette added")
+        if result == .saved { model.show("Palette added") }
+        return result
     }
 
     func delete(_ p: Palette) {
         guard store.palettes.count > 1 else { model.show("Keep at least one palette."); return }
         let list = visible
         let i = list.firstIndex { $0.id == p.id }
-        commit(p.id, to: nil, "Delete Palette")
+        let result = commit(p.id, to: nil, "Delete Palette")
         if model.selectedID == p.id {
             let rest = visible
             model.selectedID = (i.flatMap { rest.indices.contains($0) ? rest[$0].id : rest.last?.id }) ?? store.palettes.first?.id ?? ""
         }
-        model.show("Palette deleted", detail: "Edit > Undo brings it back.")
+        if result == .saved { model.show("Palette deleted", detail: "Edit > Undo brings it back.") }
     }
 
     // MARK: Moving around
@@ -345,10 +354,12 @@ final class PaletteActions {
 
     // MARK: Collections
 
-    /// Swap the collection list and register the way back.
-    private func commitCollections(_ next: [PaletteCollection], _ name: String) {
+    /// Swap the collection list and register the way back. False when it
+    /// could not be saved.
+    @discardableResult
+    private func commitCollections(_ next: [PaletteCollection], _ name: String) -> Bool {
         let old = store.collections
-        store.setCollections(next)
+        let saved = store.setCollections(next)
         undoManager?.registerUndo(withTarget: store) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -357,6 +368,8 @@ final class PaletteActions {
             }
         }
         undoManager?.setActionName(name)
+        if !saved { showNotSaved() }
+        return saved
     }
 
     @discardableResult
@@ -376,15 +389,16 @@ final class PaletteActions {
     }
 
     func deleteCollection(_ id: String) {
-        commitCollections(store.collections.filter { $0.id != id }, "Delete Collection")
+        let saved = commitCollections(store.collections.filter { $0.id != id }, "Delete Collection")
         if model.collectionID == id { model.sidebar = .library(.all) }
-        model.show("Collection deleted", detail: "The palettes stay in your library. Edit > Undo brings it back.")
+        if saved { model.show("Collection deleted", detail: "The palettes stay in your library. Edit > Undo brings it back.") }
     }
 
     func addToCollection(_ paletteID: String, _ collectionID: String) {
         guard let c = store.collections.first(where: { $0.id == collectionID }), !c.paletteIDs.contains(paletteID) else { return }
-        commitCollections(store.collections.map { $0.id == collectionID ? PaletteCollection(id: $0.id, name: $0.name, paletteIDs: $0.paletteIDs + [paletteID]) : $0 }, "Add to Collection")
-        model.show("Added to \(c.name)")
+        if commitCollections(store.collections.map { $0.id == collectionID ? PaletteCollection(id: $0.id, name: $0.name, paletteIDs: $0.paletteIDs + [paletteID]) : $0 }, "Add to Collection") {
+            model.show("Added to \(c.name)")
+        }
     }
 
     func removeFromCollection(_ paletteID: String, _ collectionID: String) {
@@ -443,8 +457,9 @@ final class PaletteActions {
             let list = items.compactMap { decodeEntry(Palette.self, from: $0) }.filter(\.isValid)
             guard !list.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
             let before = store.snapshot()
-            let (added, replaced) = store.put(contentsOf: list)
+            let (added, replaced, saved) = store.put(contentsOf: list)
             registerSnapshotUndo(before, "Import Collection")
+            guard saved else { showNotSaved(); return }
             let skipped = items.count - list.count
             var detail = replaced > 0 ? "\(replaced) replaced palettes with the same id." : ""
             if skipped > 0 { detail += (detail.isEmpty ? "" : " ") + "\(skipped) could not be read." }

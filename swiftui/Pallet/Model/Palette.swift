@@ -69,6 +69,10 @@ final class PaletteStore {
     @ObservationIgnored private var rawPalettes: [String: [String: Any]] = [:]
     @ObservationIgnored private var rawCollections: [String: [String: Any]] = [:]
     private var hidden: [String] = []
+    /// What the files hold as far as Pallet knows, so a change that could not
+    /// be written to a locked file is reported instead of looking saved.
+    @ObservationIgnored private var savedOnDisk: [Palette] = []
+    @ObservationIgnored private var hiddenOnDisk: [String] = []
     /// Files that exist but could not be read. Pallet never writes these.
     private var locked: Set<String> = []
     /// Modification date and size seen at the last load or write, so the
@@ -78,16 +82,18 @@ final class PaletteStore {
     private var watcher: DispatchSourceFileSystemObject?
     @ObservationIgnored private var pendingReload: DispatchWorkItem?
 
-    init() {
+    init(directory custom: URL? = nil) {
         let url = Bundle.main.url(forResource: "builtin-palettes", withExtension: "json")
         builtins = url.flatMap { try? JSONDecoder().decode([Palette].self, from: Data(contentsOf: $0)) } ?? []
         // Launch with -PalletDataDirectory <path> to try things on a copy of the collection.
-        if let custom = UserDefaults.standard.string(forKey: "PalletDataDirectory") {
+        if let custom {
+            directory = custom
+        } else if let custom = UserDefaults.standard.string(forKey: "PalletDataDirectory") {
             directory = URL(fileURLWithPath: custom, isDirectory: true)
         } else {
             directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Palette", isDirectory: true)
         }
-        load()
+        load(settle: true)
         watch()
     }
 
@@ -96,7 +102,10 @@ final class PaletteStore {
     private var collectionsFile: URL { directory.appendingPathComponent("collections.json") }
     private var files: [URL] { [file, hiddenFile, collectionsFile] }
 
-    private enum Read { case missing, ok([Any]), unreadable }
+    private enum Read {
+        case missing, ok([Any]), unreadable
+        var isUnreadable: Bool { if case .unreadable = self { true } else { false } }
+    }
 
     private func readArray(_ url: URL, entries: (Any) -> [Any]? = { $0 as? [Any] }) -> Read {
         guard FileManager.default.fileExists(atPath: url.path) else { return .missing }
@@ -105,12 +114,23 @@ final class PaletteStore {
         return .ok(list)
     }
 
-    func load() {
+    /// `settle` is for launch, where the watcher's wait in reloadSoon doesn't
+    /// help: a sync tool halfway through a save gets about 2 seconds to finish
+    /// before a file that can't be read is locked.
+    func load(settle: Bool = false) {
+        func readAll() -> [Read] { [readArray(file, entries: paletteEntries), readArray(hiddenFile), readArray(collectionsFile)] }
+        var reads = readAll()
+        var tries = 0
+        while settle && tries < 8 && reads.contains(where: \.isUnreadable) {
+            Thread.sleep(forTimeInterval: 0.25)
+            reads = readAll()
+            tries += 1
+        }
         locked = []
         saved = []
         foreign = []
         rawPalettes = [:]
-        switch readArray(file, entries: paletteEntries) {
+        switch reads[0] {
         case .missing: break
         case .unreadable: lock(file)
         case .ok(let items):
@@ -126,7 +146,7 @@ final class PaletteStore {
         }
         hidden = []
         hiddenForeign = []
-        switch readArray(hiddenFile) {
+        switch reads[1] {
         case .ok(let items):
             for item in items {
                 if let id = item as? String { hidden.append(id) } else { hiddenForeign.append(item) }
@@ -137,7 +157,7 @@ final class PaletteStore {
         var list: [PaletteCollection] = []
         collectionsForeign = []
         rawCollections = [:]
-        switch readArray(collectionsFile) {
+        switch reads[2] {
         case .ok(let items):
             for item in items {
                 if let c = decodeEntry(PaletteCollection.self, from: item),
@@ -152,6 +172,8 @@ final class PaletteStore {
         case .unreadable: lock(collectionsFile)
         }
         collections = list
+        savedOnDisk = saved
+        hiddenOnDisk = hidden
         loadError = lockedMessage
         stamp()
         let order = Dictionary(uniqueKeysWithValues: builtins.enumerated().map { ($1.id, $0) })
@@ -173,30 +195,31 @@ final class PaletteStore {
     private var lockedMessage: String? {
         guard !locked.isEmpty else { return nil }
         let names = locked.map { URL(fileURLWithPath: $0).lastPathComponent }.sorted().joined(separator: ", ")
-        return "Pallet could not read \(names), so it will not change it. A copy was saved next to it in ~/Library/Application Support/Palette."
+        return "Pallet could not read \(names), so it will not change it, and changes to it are not saved. A copy was saved next to it in ~/Library/Application Support/Palette."
     }
 
     func isBuiltIn(_ id: String) -> Bool { builtins.contains { $0.id == id } }
 
-    /// Add or replace a palette. `index` puts a restored palette back where it
-    /// was. Returns false when the palette is not valid.
+    /// The outcome of a change. Not saved: the change shows in the app, but a
+    /// file it needs is locked or could not be written, so it is gone after a reload.
+    enum Save { case saved, notSaved, invalid }
+
+    /// Add or replace a palette. `index` puts a restored palette back where it was.
     @discardableResult
-    func put(_ p: Palette, at index: Int? = nil) -> Bool {
-        guard apply(p, at: index) else { return false }
-        write()
-        return true
+    func put(_ p: Palette, at index: Int? = nil) -> Save {
+        guard apply(p, at: index) else { return .invalid }
+        return write() ? .saved : .notSaved
     }
 
     /// Add or replace many palettes with one save. Returns how many were added
     /// and how many replaced an existing palette; invalid ones are skipped.
-    func put(contentsOf list: [Palette]) -> (added: Int, replaced: Int) {
+    func put(contentsOf list: [Palette]) -> (added: Int, replaced: Int, saved: Bool) {
         var added = 0, replaced = 0
         for p in list where p.isValid {
             if palettes.contains(where: { $0.id == p.id }) { replaced += 1 } else { added += 1 }
             apply(p, at: nil)
         }
-        write()
-        return (added, replaced)
+        return (added, replaced, write())
     }
 
     @discardableResult
@@ -220,52 +243,64 @@ final class PaletteStore {
         return true
     }
 
-    func remove(_ id: String) {
-        guard palettes.count > 1 else { return }
+    @discardableResult
+    func remove(_ id: String) -> Save {
+        guard palettes.count > 1 else { return .invalid }
         palettes.removeAll { $0.id == id }
         saved.removeAll { $0.id == id }
         if isBuiltIn(id) && !hidden.contains(id) { hidden.append(id) }
-        write()
+        return write() ? .saved : .notSaved
     }
 
     /// The whole collection, for undoing a batch change in one step.
     struct Snapshot { fileprivate var palettes: [Palette], saved: [Palette], hidden: [String] }
     func snapshot() -> Snapshot { Snapshot(palettes: palettes, saved: saved, hidden: hidden) }
-    func restore(_ s: Snapshot) {
+    @discardableResult
+    func restore(_ s: Snapshot) -> Bool {
         palettes = s.palettes
         saved = s.saved
         hidden = s.hidden
-        write()
+        return write()
     }
 
-    private func write() {
+    /// Save palettes.json and hidden.json. False when the change didn't reach
+    /// the disk: a file it needs is locked, or the write failed.
+    private func write() -> Bool {
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             if !locked.contains(file.path) {
                 let own = try merged(saved, into: rawPalettes, id: \.id)
                 try atomic(JSONSerialization.data(withJSONObject: own + foreign, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]), to: file)
+                savedOnDisk = saved
             }
             if !locked.contains(hiddenFile.path) {
                 try atomic(JSONSerialization.data(withJSONObject: hidden + hiddenForeign, options: [.prettyPrinted, .withoutEscapingSlashes]), to: hiddenFile)
+                hiddenOnDisk = hidden
             }
             stamp()
             loadError = lockedMessage
+            return saved == savedOnDisk && hidden == hiddenOnDisk
         } catch {
             loadError = "Changes not saved. Your change is still visible."
+            return false
         }
     }
 
-    /// Replace the whole list of collections and save it.
-    func setCollections(_ list: [PaletteCollection]) {
+    /// Replace the whole list of collections and save it. False when it
+    /// could not be saved.
+    @discardableResult
+    func setCollections(_ list: [PaletteCollection]) -> Bool {
         collections = list
-        guard !locked.contains(collectionsFile.path) else { loadError = lockedMessage; return }
+        guard !locked.contains(collectionsFile.path) else { loadError = lockedMessage; return false }
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let own = try merged(list, into: rawCollections, id: \.id)
             try atomic(JSONSerialization.data(withJSONObject: own + collectionsForeign, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]), to: collectionsFile)
             stamp()
+            return true
         } catch {
             loadError = "Collections not saved. Your change is still visible."
+            return false
         }
     }
 

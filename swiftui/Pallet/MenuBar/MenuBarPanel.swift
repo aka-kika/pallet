@@ -12,6 +12,12 @@ struct MenuBarPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // The window's banner, for people who use only the menu bar.
+            if let error = store.loadError {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(.caption).foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             switch controller.phase {
             case .idle: start
             case .working:
@@ -127,7 +133,12 @@ struct MenuBarPanel: View {
             .clipShape(.rect(cornerRadius: 8))
             if let saved = r.saved {
                 Text(saved.name).font(.headline)
-                Label("Saved to your library", systemImage: "checkmark.circle").font(.caption).foregroundStyle(.secondary)
+                if r.notSaved {
+                    Label("Not saved: Pallet can't write to your library right now.", systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(.orange)
+                } else {
+                    Label("Saved to your library", systemImage: "checkmark.circle").font(.caption).foregroundStyle(.secondary)
+                }
                 HStack {
                     Button("Copy CSS") { copy(saved) }
                     Button("Show in Pallet") { model.selectedID = saved.id; controller.openMain() }

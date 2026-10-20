@@ -24,6 +24,8 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         var name: String
         var kind: ExtractionResult.Kind
         var saved: Palette?
+        /// Added, but palettes.json could not be written: gone after a reload.
+        var notSaved = false
     }
 
     static var shared: MenuBarController?
@@ -221,7 +223,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         }
         let p = Palette(id: Palette.newID(), name: String(r.name.trimmingCharacters(in: .whitespaces).prefix(100)), colors: r.colors, main: 0, favorite: false, source: source)
         guard p.isValid else { phase = .failed("This palette could not be saved."); return }
-        actions.addFromImage(p)
+        r.notSaved = actions.addFromImage(p) == .notSaved
         r.saved = p
         phase = .result(r)
     }
