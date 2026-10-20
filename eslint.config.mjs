@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Xcode build output.
     "swiftui/build/**",
+    // Static site build (scripts/build-site.mjs).
+    "dist-site/**",
   ]),
   {
     files: ["components/ui/**/*.{ts,tsx}"],

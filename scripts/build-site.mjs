@@ -43,7 +43,7 @@ if (!fs.existsSync(stamp)) throw new Error(`Image stamp tool missing: ${stamp}`)
 if (pngs.length) {
   try {
     execFileSync(stamp, pngs, {stdio: 'inherit'});
-  } catch (err) {
+  } catch {
     console.error('Stamping the site images FAILED. Do not publish this build.');
     process.exit(1);
   }

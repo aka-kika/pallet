@@ -12,7 +12,11 @@ export function Importer({open,onClose,file,onSave}:{open:boolean;onClose:()=>vo
  const shown=thumb||hover;
  function peek(dt:DataTransfer){const f=imageFile(dt);if(!f||hoverUrl.current)return;hoverUrl.current=URL.createObjectURL(f);setHover(hoverUrl.current);}
  function unpeek(){if(hoverUrl.current){URL.revokeObjectURL(hoverUrl.current);hoverUrl.current='';}setHover('');setOver(false);}
+ // Each time the dialog opens it starts fresh from the file it was given.
+ // eslint-disable-next-line react-hooks/set-state-in-effect
  useEffect(()=>{if(open){setError('');setDraft(null);setPreview('');setCurrent(file);unpeek();}},[open,file]);
+ // The thumbnail is an object URL tied to the current file, freed when the file changes.
+ // eslint-disable-next-line react-hooks/set-state-in-effect
  useEffect(()=>{if(!current){setThumb('');return;}const url=URL.createObjectURL(current);setThumb(url);return()=>URL.revokeObjectURL(url);},[current]);
  useEffect(()=>()=>{if(hoverUrl.current)URL.revokeObjectURL(hoverUrl.current);},[]);
  useEffect(()=>{if(!open)return;function paste(e:ClipboardEvent){if(busy||draft)return;const f=imageFile(e.clipboardData);if(f){e.preventDefault();setCurrent(f);setError('');}}window.addEventListener('paste',paste);return()=>window.removeEventListener('paste',paste);},[open,busy,draft]);

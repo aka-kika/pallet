@@ -8,6 +8,8 @@ import {parseHex} from '@/lib/palettes';
 export function Settings({open,onClose,tab,setTab,appearance,setAppearance,autoImportOnDrop,setAutoImportOnDrop,hideKeyboardGuide,setHideKeyboardGuide,view,setView,bgLock,setBgLock}:{open:boolean;onClose:()=>void;tab:string;setTab:(v:string)=>void;appearance:string;setAppearance:(s:string)=>void;autoImportOnDrop:boolean;setAutoImportOnDrop:(v:boolean)=>void;hideKeyboardGuide:boolean;setHideKeyboardGuide:(v:boolean)=>void;view:string;setView:(v:string)=>void;bgLock:string|null;setBgLock:(v:string|null)=>void}){
  const [hexField,setHexField]=useState(bgLock||'');
  const snap=useRef({appearance,autoImportOnDrop,hideKeyboardGuide,view,bgLock});
+ // Snapshot the settings only when the panel opens, so Cancel can put them back.
+ // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
  useEffect(()=>{if(open){snap.current={appearance,autoImportOnDrop,hideKeyboardGuide,view,bgLock};setHexField(bgLock||'');}},[open]);
  function cancel(){setAppearance(snap.current.appearance);setAutoImportOnDrop(snap.current.autoImportOnDrop);setHideKeyboardGuide(snap.current.hideKeyboardGuide);setView(snap.current.view);setBgLock(snap.current.bgLock);onClose();}
  function save(){snap.current={appearance,autoImportOnDrop,hideKeyboardGuide,view,bgLock};onClose();}
