@@ -36,14 +36,6 @@ nonisolated func paletteEntries(_ root: Any) -> [Any]? {
     return (root as? [String: Any])?["palettes"] as? [Any]
 }
 
-extension JSONEncoder {
-    nonisolated static var pallet: JSONEncoder {
-        let e = JSONEncoder()
-        e.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
-        return e
-    }
-}
-
 /// The collection: built-in palettes from shared/builtin-palettes.json, the
 /// user's own in ~/Library/Application Support/Palette/palettes.json, deleted
 /// built-ins in hidden.json, collections in collections.json. The file format

@@ -95,14 +95,12 @@ nonisolated struct Theme: Equatable, Sendable {
     var hover: Color { color("hover") }
     var text: Color { color("text") }
     var muted: Color { color("muted") }
-    var border: Color { color("border") }
     var textSoft: Color { color("text-soft") }
     var textDim: Color { color("text-dim") }
     var icon: Color { color("icon") }
     var link: Color { color("link") }
     var focus: Color { color("focus") }
     var accent: Color { color("accent") }
-    var onAccent: Color { color("on-accent") }
     var highlight: Color { color("highlight") }
     var onHighlight: Color { color("on-highlight") }
     var highlightInk: Color { color("highlight-ink") }

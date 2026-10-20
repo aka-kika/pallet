@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// The big strip of the selected palette. Click a color to make it the main
 /// color; click its hex chip to copy it.

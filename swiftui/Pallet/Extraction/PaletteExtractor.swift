@@ -1,6 +1,5 @@
 import CoreGraphics
 import Foundation
-import ImageIO
 import Vision
 
 /// The colors pulled out of a dropped image, plus a title when the image has one.
@@ -46,13 +45,6 @@ nonisolated enum PaletteExtractor {
                               space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue),
           let image = ctx.makeImage() else { return }
     _ = TextReader.read(image)
-  }
-
-  static func extract(contentsOf url: URL) async throws -> ExtractionResult {
-    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-          let image = CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
-    else { throw PaletteExtractorError.unreadableImage }
-    return try await extract(from: image)
   }
 
   static func extract(from image: CGImage) async throws -> ExtractionResult {
