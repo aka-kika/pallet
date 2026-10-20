@@ -28,6 +28,13 @@
       ],
     }, {
       "kind": "group",
+      "path": "../docs",
+      "name": "Docs",
+      "children": [
+        { "path": "release-notes", "type": "folder", "target-membership": [ "Pallet/resources" ] },
+      ],
+    }, {
+      "kind": "group",
       "name": "Products",
       "children": [
         { "path": "<PRODUCTS>/Pallet.app", "id": "5F1C0A7E2B9D4C3A8E6F1B20", "index": false },
@@ -70,13 +77,13 @@
     "CLANG_ENABLE_MODULES": "YES",
     "CLANG_ENABLE_OBJC_ARC": "YES",
     "COPY_PHASE_STRIP": "NO",
-    "CURRENT_PROJECT_VERSION": "2006",
+    "CURRENT_PROJECT_VERSION": "2007",
     "DEBUG_INFORMATION_FORMAT[config=Debug]": "dwarf",
     "DEBUG_INFORMATION_FORMAT[config=Release]": "dwarf-with-dsym",
     "ENABLE_TESTABILITY[config=Debug]": "YES",
     "GCC_OPTIMIZATION_LEVEL[config=Debug]": "0",
     "MACOSX_DEPLOYMENT_TARGET": "26.0",
-    "MARKETING_VERSION": "2.0.3",
+    "MARKETING_VERSION": "2.0.4",
     "ONLY_ACTIVE_ARCH[config=Debug]": "YES",
     "SDKROOT": "macosx",
     "SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Debug]": "DEBUG",

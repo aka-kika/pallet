@@ -9,5 +9,5 @@ trap 'rm -rf "$out"' EXIT
 xcrun swiftc -swift-version 6 -default-isolation MainActor -enable-upcoming-feature NonisolatedNonsendingByDefault \
   -enable-upcoming-feature InferIsolatedConformances -module-name PalletTests -o "$out/pallet-tests" \
   "$here/main.swift" "$src/Model/Palette.swift" "$src/Model/Collections.swift" "$src/Model/Theme.swift" \
-  "$src/Model/AppShortcuts.swift" "$src/MenuBar/HotKey.swift"
+  "$src/Model/AppShortcuts.swift" "$src/MenuBar/HotKey.swift" "$src/WhatsNew.swift"
 "$out/pallet-tests"

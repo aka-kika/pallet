@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.0.4 (2026-10-20)
 
 Fixes from the 20 October code review. Nothing to move or set up.
 
@@ -15,6 +15,7 @@ Fixes from the 20 October code review. Nothing to move or set up.
 - A file Pallet can't read is copied aside once, not again at every launch, and the warning no longer claims a copy it couldn't make.
 - Web: Import Collection keeps the palettes it can read and says how many it skipped, like the Mac app. A heart or main color on one of Kika's palettes no longer freezes an old copy of it.
 - Docs: build without the maintainer's certificate (ad hoc signing); SECURITY.md mentions the web page's visit counter (Umami, no cookies); the README says the web version reads images more simply than the Mac app.
+- After an update, Pallet shows what changed once; Help > What's New in Pallet shows it again.
 - New checks: `swiftui/Tests/run.sh` (Mac, on throwaway folders) and `pnpm test` (web).
 
 ## 2.0.3 (2026-10-14)

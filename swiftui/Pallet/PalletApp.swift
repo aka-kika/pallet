@@ -114,6 +114,8 @@ final class AppModel {
     var exporting: Palette?
     var pendingDelete: Palette?
     var toast: Toast?
+    /// The What's new sheet's lines while it is open.
+    var whatsNew: [WhatsNew.Line]?
     /// Set by keyboard navigation only, so shuffle and saving keep the view still.
     var scrollTarget: String?
 
@@ -517,6 +519,13 @@ struct PalletCommands: Commands {
         let _ = model.openSettingsWindow = { openSettings() }
         CommandGroup(replacing: .appInfo) {
             Button("About Pallet") { model.settingsTab = .about; openSettings() }
+        }
+        CommandGroup(replacing: .help) {
+            Button("What's New in Pallet") {
+                model.whatsNew = WhatsNew.notes(for: WhatsNew.currentVersion)
+                openWindow(id: "main")
+            }
+            .disabled(WhatsNew.notes(for: WhatsNew.currentVersion) == nil)
         }
         CommandGroup(after: .newItem) {
             Button("Capture Screen Area") { MenuBarController.shared?.captureArea() }

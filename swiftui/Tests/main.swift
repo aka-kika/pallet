@@ -169,6 +169,12 @@ check(Shortcut.stored(prefs["captureShortcut"], default: .standard) == custom, "
 prefs["captureShortcut"] = Shortcut.storable(key(kVK_ANSI_Q, cmdKey))
 check(Shortcut.stored(prefs["captureShortcut"], default: .standard) == .standard, "a stored Cmd-Q goes back to the default")
 
+print("What's new")
+let notesURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../docs/release-notes/2.0.4.md")
+let lines = WhatsNew.parse(text(notesURL))
+check(lines.first == .heading("Fixes in 2.0.4 (the 20 October code review)"), "the notes start with their heading, not the install line")
+check(lines.dropFirst().allSatisfy { if case .bullet = $0 { true } else { false } } && lines.count > 5, "then the bullets")
+
 for url in made { try? FileManager.default.removeItem(at: url) }
 
 print(failures == 0 ? "\nAll checks passed." : "\n\(failures) check(s) failed.")

@@ -28,6 +28,16 @@ struct ContentView: View {
             ImportSheet(request: request) { actions.addFromImage($0) }
         }
         .sheet(item: $model.exporting) { ExportSheet(palette: $0) }
+        // Once after an update, and from Help > What's New in Pallet.
+        .sheet(isPresented: Binding(get: { model.whatsNew != nil }, set: { if !$0 { closeWhatsNew() } })) {
+            WhatsNewSheet(appName: "Pallet", lines: model.whatsNew ?? []) { closeWhatsNew() }
+        }
+        .onAppear {
+            // 2.0.3 and older kept no version: someone who has used Pallet is updating, not installing.
+            let d = UserDefaults.standard
+            if d.string(forKey: WhatsNew.lastSeenKey) == nil && d.object(forKey: "selected") != nil { d.set("2.0.3", forKey: WhatsNew.lastSeenKey) }
+            if WhatsNew.shouldShow() { model.whatsNew = WhatsNew.notes(for: WhatsNew.currentVersion) }
+        }
         .alert("Rename Collection", isPresented: Binding(get: { model.renaming != nil }, set: { if !$0 { model.renaming = nil } })) {
             TextField("Name", text: $renameText)
             Button("Rename") { if let c = model.renaming { actions.renameCollection(c.id, to: renameText) } }
@@ -40,6 +50,11 @@ struct ContentView: View {
         } message: {
             Text("You can undo this with Edit > Undo.")
         }
+    }
+
+    private func closeWhatsNew() {
+        WhatsNew.markSeen()
+        model.whatsNew = nil
     }
 }
 
