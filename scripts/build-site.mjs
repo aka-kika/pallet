@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Build the web app as static files for akakika.com/pallet and copy them into
 // the site repo (public/pallet/). collection.json there is left alone: it is
-// written by scripts/pallet-publish.mjs.
+// written by scripts/pallet-publish.mjs. Every image it copies is then stamped
+// with Kika's credit (stamp-image.sh); a failed stamp fails the build.
 //
 //   node scripts/build-site.mjs [--site <path>]
 import fs from 'node:fs';
@@ -25,3 +26,26 @@ for (const name of fs.readdirSync(out)) {
 }
 fs.cpSync(path.join(root, 'dist-site'), out, {recursive: true});
 console.log('Copied the Pallet page into', out);
+
+// Every public image leaves stripped and stamped with Kika's credit. The tool
+// stamps in place; it exits non-zero when any file is not stamped, so the build fails.
+const pngs = [];
+const walk = (dir) => {
+  for (const e of fs.readdirSync(dir, {withFileTypes: true})) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) walk(p);
+    else if (/\.(png|jpe?g|webp)$/i.test(e.name)) pngs.push(p);
+  }
+};
+walk(out);
+const stamp = path.join(os.homedir(), '_KIKA_MAIN/_INFRA/scripts/stamp-image.sh');
+if (!fs.existsSync(stamp)) throw new Error(`Image stamp tool missing: ${stamp}`);
+if (pngs.length) {
+  try {
+    execFileSync(stamp, pngs, {stdio: 'inherit'});
+  } catch (err) {
+    console.error('Stamping the site images FAILED. Do not publish this build.');
+    process.exit(1);
+  }
+}
+console.log(`Stamped ${pngs.length} image(s).`);
