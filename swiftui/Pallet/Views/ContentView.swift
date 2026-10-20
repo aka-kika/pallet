@@ -6,7 +6,6 @@ struct ContentView: View {
     @Environment(PaletteStore.self) private var store
     @Environment(AppModel.self) private var model
     @Environment(PaletteActions.self) private var actions
-    @Environment(\.undoManager) private var undoManager
     @State private var renameText = ""
 
     var body: some View {
@@ -20,8 +19,6 @@ struct ContentView: View {
         .searchable(text: $model.query, placement: .sidebar, prompt: "Name or color")
         .frame(minWidth: 640, minHeight: 460)
         .preferredColorScheme(model.colorScheme)
-        .onAppear { actions.undoManager = undoManager }
-        .onChange(of: undoManager) { actions.undoManager = undoManager }
         // A collection removed elsewhere (another Mac, a restore) leaves nothing selected.
         .onChange(of: store.collections, initial: true) {
             if let id = model.collectionID, !store.collections.contains(where: { $0.id == id }) { model.sidebar = .library(.all) }

@@ -7,6 +7,7 @@ struct MenuBarPanel: View {
     let controller: MenuBarController
     @Environment(PaletteStore.self) private var store
     @Environment(AppModel.self) private var model
+    @Environment(PaletteActions.self) private var actions
     @State private var copied: String?
     @State private var dropping = false
 
@@ -144,6 +145,11 @@ struct MenuBarPanel: View {
                     Button("Copy CSS") { copy(saved) }
                     Button("Show in Pallet") { model.selectedID = saved.id; controller.openMain() }
                     Spacer()
+                    if actions.canUndo {
+                        Button { actions.undoManager.undo(); controller.done() } label: { Image(systemName: "arrow.uturn.backward") }
+                            .keyboardShortcut("z")
+                            .help(actions.undoTitle)
+                    }
                     Button("Done") { controller.done() }
                 }
             } else {

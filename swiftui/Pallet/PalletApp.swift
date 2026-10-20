@@ -181,11 +181,28 @@ struct ImportRequest: Identifiable {
 final class PaletteActions {
     let store: PaletteStore
     let model: AppModel
-    @ObservationIgnored weak var undoManager: UndoManager?
+    /// One undo history for the window and the menu bar panel, so a palette
+    /// saved from the panel can be undone before the window ever opened.
+    @ObservationIgnored let undoManager = UndoManager()
+    /// The Edit menu's titles, kept current for the menu.
+    private(set) var undoTitle = "Undo"
+    private(set) var redoTitle = "Redo"
+    private(set) var canUndo = false
 
     init(store: PaletteStore, model: AppModel) {
         self.store = store
         self.model = model
+        for name in [Notification.Name.NSUndoManagerDidCloseUndoGroup, .NSUndoManagerDidUndoChange, .NSUndoManagerDidRedoChange] {
+            NotificationCenter.default.addObserver(forName: name, object: undoManager, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.undoChanged() }
+            }
+        }
+    }
+
+    private func undoChanged() {
+        undoTitle = undoManager.undoMenuItemTitle
+        redoTitle = undoManager.redoMenuItemTitle
+        canUndo = undoManager.canUndo
     }
 
     var active: Palette? { store.palettes.first { $0.id == model.selectedID } ?? store.palettes.first }
@@ -247,13 +264,13 @@ final class PaletteActions {
         let selected = model.selectedID
         let result = if let new { store.put(new, at: index) } else { store.remove(id) }
         guard result != .invalid else { return result }
-        undoManager?.registerUndo(withTarget: store) { [weak self] _ in
+        undoManager.registerUndo(withTarget: store) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
                 self.restore(id, to: old, at: index, redo: new, selected: selected, name)
             }
         }
-        undoManager?.setActionName(name)
+        undoManager.setActionName(name)
         if result == .notSaved { showNotSaved() }
         return result
     }
@@ -265,10 +282,10 @@ final class PaletteActions {
     private func restore(_ id: String, to old: Palette?, at index: Int?, redo new: Palette?, selected: String, _ name: String) {
         if let old { store.put(old, at: index) } else { store.remove(id) }
         model.selectedID = store.palettes.contains { $0.id == selected } ? selected : (store.palettes.first?.id ?? selected)
-        undoManager?.registerUndo(withTarget: store) { [weak self] _ in
+        undoManager.registerUndo(withTarget: store) { [weak self] _ in
             MainActor.assumeIsolated { _ = self?.commit(id, to: new, name) }
         }
-        undoManager?.setActionName(name)
+        undoManager.setActionName(name)
     }
 
     func setMain(_ i: Int) {
@@ -360,14 +377,14 @@ final class PaletteActions {
     private func commitCollections(_ next: [PaletteCollection], _ name: String) -> Bool {
         let old = store.collections
         let saved = store.setCollections(next)
-        undoManager?.registerUndo(withTarget: store) { [weak self] _ in
+        undoManager.registerUndo(withTarget: store) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
                 self.commitCollections(old, name)
                 if let id = self.model.collectionID, !old.contains(where: { $0.id == id }) { self.model.sidebar = .library(.all) }
             }
         }
-        undoManager?.setActionName(name)
+        undoManager.setActionName(name)
         if !saved { showNotSaved() }
         return saved
     }
@@ -472,10 +489,10 @@ final class PaletteActions {
     /// Undo for a batch change: put the whole collection back as it was.
     private func registerSnapshotUndo(_ before: PaletteStore.Snapshot, _ name: String) {
         let after = store.snapshot()
-        undoManager?.registerUndo(withTarget: store) { [weak self] store in
+        undoManager.registerUndo(withTarget: store) { [weak self] store in
             MainActor.assumeIsolated {
                 store.restore(before)
-                self?.undoManager?.registerUndo(withTarget: store) { [weak self] store in
+                self?.undoManager.registerUndo(withTarget: store) { [weak self] store in
                     MainActor.assumeIsolated {
                         store.restore(after)
                         if let self { self.registerSnapshotUndo(before, name) }
@@ -483,7 +500,7 @@ final class PaletteActions {
                 }
             }
         }
-        undoManager?.setActionName(name)
+        undoManager.setActionName(name)
     }
 }
 
@@ -523,6 +540,18 @@ struct PalletCommands: Commands {
         }
         // Copy and Paste act on text fields when one is focused, otherwise
         // Copy takes the theme CSS and Paste takes an image, like the web app.
+        // Undo and Redo act on text fields when one is focused, otherwise on
+        // the palette history, which the menu bar panel shares.
+        CommandGroup(replacing: .undoRedo) {
+            Button(actions.undoTitle) {
+                if editingText { NSApp.sendAction(Selector(("undo:")), to: nil, from: nil) } else { actions.undoManager.undo() }
+            }
+            .keyboardShortcut("z")
+            Button(actions.redoTitle) {
+                if editingText { NSApp.sendAction(Selector(("redo:")), to: nil, from: nil) } else { actions.undoManager.redo() }
+            }
+            .keyboardShortcut("z", modifiers: [.command, .shift])
+        }
         CommandGroup(replacing: .pasteboard) {
             Button("Cut") { NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil) }
                 .keyboardShortcut("x")
