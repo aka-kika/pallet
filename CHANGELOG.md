@@ -10,7 +10,7 @@ Fixes from the 20 October code review. Nothing to move or set up.
 - A global shortcut removed in Settings stays removed after a relaunch.
 - When a sync tool or another Mac changes your collection while Pallet is open, the next save reads the files again first instead of writing over that change.
 - Undo works for palettes saved from the menu bar panel, even before the window has opened (the panel has its own Undo after a save).
-- In Dock-only mode, a missing Screen Recording permission or a failed capture now shows an alert instead of nothing.
+- In Dock-only mode, a missing Screen Recording permission or a failed capture now shows an alert instead of nothing. File > Capture Screen Area is back in the menu.
 - Recording a menu shortcut pauses the global shortcuts, so Shift-Command-P is recorded instead of starting a capture. Restore Defaults also resets the two global shortcuts.
 - A file Pallet can't read is copied aside once, not again at every launch, and the warning no longer claims a copy it couldn't make.
 - Web: Import Collection keeps the palettes it can read and says how many it skipped, like the Mac app. A heart or main color on one of Kika's palettes no longer freezes an old copy of it.
