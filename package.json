@@ -11,8 +11,9 @@
     "dev": "node scripts/run-framework.mjs dev",
     "build": "node scripts/run-framework.mjs build",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "test": "node scripts/contrast-check.mjs",
+    "test": "node scripts/contrast-check.mjs && node scripts/collection-check.mjs",
     "check:contrast": "node scripts/contrast-check.mjs",
+    "check:collection": "node scripts/collection-check.mjs",
     "site:build": "node scripts/build-site.mjs",
     "site:publish": "node scripts/pallet-publish.mjs"
   },
