@@ -15,7 +15,7 @@ Only the latest release gets fixes.
 - The collection is plain JSON in `~/Library/Application Support/Palette/`.
 - Screen capture uses the system picker (`screencapture -i`) and needs the Screen Recording permission, which you grant in System Settings.
 - The app is signed with a Developer ID and notarized by Apple.
-- The web version at akakika.com/pallet keeps a visitor's own palettes in their browser only.
+- The web version at akakika.com/pallet keeps a visitor's own palettes in their browser only, and reads images in the browser too. The page counts visits with Umami at stats.akakika.com (no cookies); palettes and images are never sent.
 
 ## Reporting a vulnerability
 
