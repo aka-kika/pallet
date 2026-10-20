@@ -62,6 +62,26 @@ do {
     check(store.loadError == nil, "no banner")
 }
 
+print("A sync changes the files while Pallet is open")
+do {
+    let dir = folder()
+    let file = dir.appendingPathComponent("palettes.json")
+    let store = PaletteStore(directory: dir)
+    let mine = palette("Mine")
+    store.put(mine)
+    // Another Mac adds a palette; the watcher hasn't reloaded yet.
+    var list = try! JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [Any]
+    list.append(try! JSONSerialization.jsonObject(with: JSONEncoder().encode(palette("From Sync"))))
+    try! JSONSerialization.data(withJSONObject: list).write(to: file)
+    check(store.put(palette("Next")) == .saved, "the next save works")
+    let names = text(file)
+    check(names.contains("From Sync") && names.contains("Mine") && names.contains("Next"), "and keeps the palette the sync added")
+    let collections = dir.appendingPathComponent("collections.json")
+    try! #"[{"id": "c-sync", "name": "Synced", "paletteIDs": []}]"#.write(to: collections, atomically: true, encoding: .utf8)
+    check(store.setCollections([PaletteCollection(id: "c-mine", name: "Mine", paletteIDs: [])]) == false, "a collection change made from an old list is refused")
+    check(store.collections.map(\.id) == ["c-sync"] && text(collections).contains("c-sync"), "the synced collections stay and show")
+}
+
 print("Only hidden.json locked")
 do {
     let dir = folder()

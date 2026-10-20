@@ -220,6 +220,7 @@ final class PaletteStore {
     /// Add or replace a palette. `index` puts a restored palette back where it was.
     @discardableResult
     func put(_ p: Palette, at index: Int? = nil) -> Save {
+        refreshIfChanged()
         guard apply(p, at: index) else { return .invalid }
         return write() ? .saved : .notSaved
     }
@@ -227,6 +228,7 @@ final class PaletteStore {
     /// Add or replace many palettes with one save. Returns how many were added
     /// and how many replaced an existing palette; invalid ones are skipped.
     func put(contentsOf list: [Palette]) -> (added: Int, replaced: Int, saved: Bool) {
+        refreshIfChanged()
         var added = 0, replaced = 0
         for p in list where p.isValid {
             if palettes.contains(where: { $0.id == p.id }) { replaced += 1 } else { added += 1 }
@@ -258,6 +260,7 @@ final class PaletteStore {
 
     @discardableResult
     func remove(_ id: String) -> Save {
+        refreshIfChanged()
         guard palettes.count > 1 else { return .invalid }
         palettes.removeAll { $0.id == id }
         saved.removeAll { $0.id == id }
@@ -303,6 +306,14 @@ final class PaletteStore {
     /// could not be saved.
     @discardableResult
     func setCollections(_ list: [PaletteCollection]) -> Bool {
+        // The list was made from the collections as Pallet knew them: if
+        // another app changed the file since, show its version instead.
+        let changed = current(collectionsFile) != stamps[collectionsFile.path]
+        refreshIfChanged()
+        if changed {
+            loadError = (lockedMessage.map { $0 + " " } ?? "") + "collections.json was changed outside Pallet and has been read again. Try your change again."
+            return false
+        }
         collections = list
         guard !locked.contains(collectionsFile.path) else { loadError = lockedMessage; return false }
         do {
@@ -343,6 +354,16 @@ final class PaletteStore {
 
     private func stamp() {
         stamps = Dictionary(uniqueKeysWithValues: files.compactMap { url in current(url).map { (url.path, $0) } })
+    }
+
+    /// Read the files again when something else changed them since Pallet
+    /// last read or wrote them, so a save never writes over a sync's edit.
+    @discardableResult
+    private func refreshIfChanged() -> Bool {
+        guard files.contains(where: { current($0) != stamps[$0.path] }) else { return false }
+        pendingReload?.cancel()
+        load()
+        return true
     }
 
     /// Reload if one of the files changed since the last load or write, for
