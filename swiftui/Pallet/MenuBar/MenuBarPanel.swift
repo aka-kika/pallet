@@ -136,6 +136,7 @@ struct MenuBarPanel: View {
                 if r.notSaved {
                     Label("Not saved: Pallet can't write to your library right now.", systemImage: "exclamationmark.triangle")
                         .font(.caption).foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
                 } else {
                     Label("Saved to your library", systemImage: "checkmark.circle").font(.caption).foregroundStyle(.secondary)
                 }
