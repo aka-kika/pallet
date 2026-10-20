@@ -90,12 +90,17 @@ nonisolated struct KeyCombo: Codable, Equatable, Sendable {
         } else {
             return nil
         }
-        // Standard keys (Quit, Close, Hide, Edit, Undo, Settings) and Pallet's
-        // fixed ones (Cmd-1 to 4, Cmd-Delete) stay theirs.
-        let reserved: Set<String> = ["q", "w", "h", "m", "x", "c", "v", "a", "z", ",", "1", "2", "3", "4", "delete"]
-        if m == .command && reserved.contains(key) { return nil }
-        if m == [.command, .shift] && key == "z" { return nil }   // Redo
+        if KeyCombo.isReserved(key, m) { return nil }
         modifiers = m.rawValue
+    }
+
+    /// Standard keys (Quit, Close, Hide, Edit, Undo, Settings) and Pallet's
+    /// fixed ones (Cmd-1 to 4, Cmd-Delete) stay theirs. The global shortcuts
+    /// use this too: there they would take the key from every app.
+    static func isReserved(_ key: String, _ m: EventModifiers) -> Bool {
+        let reserved: Set<String> = ["q", "w", "h", "m", "x", "c", "v", "a", "z", ",", "1", "2", "3", "4", "delete"]
+        if m == .command && reserved.contains(key) { return true }
+        return m == [.command, .shift] && key == "z"   // Redo
     }
 }
 

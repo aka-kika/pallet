@@ -72,13 +72,13 @@ final class AppModel {
     var presence: Presence { didSet { save("presence", presence.rawValue); MenuBarController.shared?.apply() } }
     var captureShortcut: Shortcut? {
         didSet {
-            UserDefaults.standard.set(captureShortcut.flatMap { try? JSONEncoder().encode($0) }, forKey: "captureShortcut")
+            UserDefaults.standard.set(Shortcut.storable(captureShortcut), forKey: "captureShortcut")
             MenuBarController.shared?.apply()
         }
     }
     var panelShortcut: Shortcut? {
         didSet {
-            UserDefaults.standard.set(panelShortcut.flatMap { try? JSONEncoder().encode($0) }, forKey: "panelShortcut")
+            UserDefaults.standard.set(Shortcut.storable(panelShortcut), forKey: "panelShortcut")
             MenuBarController.shared?.apply()
         }
     }
@@ -128,16 +128,8 @@ final class AppModel {
         showShuffleButton = d.object(forKey: "showShuffleButton") as? Bool ?? true
         autoImportOnDrop = d.bool(forKey: "autoImportOnDrop")
         presence = Presence(rawValue: d.string(forKey: "presence") ?? "") ?? .both
-        if d.object(forKey: "captureShortcut") == nil {
-            captureShortcut = .standard
-        } else {
-            captureShortcut = d.data(forKey: "captureShortcut").flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }
-        }
-        if d.object(forKey: "panelShortcut") == nil {
-            panelShortcut = .panelStandard
-        } else {
-            panelShortcut = d.data(forKey: "panelShortcut").flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }
-        }
+        captureShortcut = Shortcut.stored(d.object(forKey: "captureShortcut"), default: .standard)
+        panelShortcut = Shortcut.stored(d.object(forKey: "panelShortcut"), default: .panelStandard)
         copyCSSAfterCapture = d.bool(forKey: "copyCSSAfterCapture")
         keyCombos = d.data(forKey: "keyCombos").flatMap { try? JSONDecoder().decode([String: KeyCombo].self, from: $0) } ?? [:]
     }

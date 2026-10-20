@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import SwiftUI
 
 /// A key plus modifiers, stored the way the system hot key API wants them.
 nonisolated struct Shortcut: Codable, Equatable, Sendable {
@@ -16,7 +17,7 @@ nonisolated struct Shortcut: Codable, Equatable, Sendable {
     }
 
     /// From a key press while recording. Needs Command or Control so it can't
-    /// steal plain typing.
+    /// steal plain typing, and leaves the standard keys (Quit, Copy, Paste...) alone.
     init?(event: NSEvent) {
         let f = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         guard f.contains(.command) || f.contains(.control) else { return nil }
@@ -26,6 +27,33 @@ nonisolated struct Shortcut: Codable, Equatable, Sendable {
         if f.contains(.control) { m |= UInt32(controlKey) }
         if f.contains(.shift) { m |= UInt32(shiftKey) }
         self.init(keyCode: UInt32(event.keyCode), modifiers: m)
+        if isReserved { return nil }
+    }
+
+    /// A key every app needs, such as Cmd-Q, Cmd-C or Cmd-V: a system-wide
+    /// hot key would take it from all of them.
+    var isReserved: Bool {
+        var m: SwiftUI.EventModifiers = []
+        if modifiers & UInt32(cmdKey) != 0 { m.insert(.command) }
+        if modifiers & UInt32(optionKey) != 0 { m.insert(.option) }
+        if modifiers & UInt32(controlKey) != 0 { m.insert(.control) }
+        if modifiers & UInt32(shiftKey) != 0 { m.insert(.shift) }
+        let key = Int(keyCode) == kVK_Delete ? "delete" : Shortcut.character(keyCode)?.lowercased() ?? ""
+        return KeyCombo.isReserved(key, m)
+    }
+
+    /// The stored setting: missing means the default, empty means none (the
+    /// shortcut was cleared in Settings). A reserved key goes back to the default.
+    static func stored(_ value: Any?, default standard: Shortcut) -> Shortcut? {
+        guard let value else { return standard }
+        guard let data = value as? Data, !data.isEmpty,
+              let shortcut = try? JSONDecoder().decode(Shortcut.self, from: data) else { return nil }
+        return shortcut.isReserved ? standard : shortcut
+    }
+
+    /// What `stored` reads back: empty data for no shortcut, so it stays off.
+    static func storable(_ shortcut: Shortcut?) -> Data {
+        shortcut.flatMap { try? JSONEncoder().encode($0) } ?? Data()
     }
 
     var display: String {
@@ -43,15 +71,20 @@ nonisolated struct Shortcut: Codable, Equatable, Sendable {
                                       kVK_F1: "F1", kVK_F2: "F2", kVK_F3: "F3", kVK_F4: "F4", kVK_F5: "F5", kVK_F6: "F6",
                                       kVK_F7: "F7", kVK_F8: "F8", kVK_F9: "F9", kVK_F10: "F10", kVK_F11: "F11", kVK_F12: "F12"]
         if let s = special[Int(code)] { return s }
+        return character(code)?.uppercased() ?? "?"
+    }
+
+    /// The character a key types in the current layout, without modifiers.
+    private static func character(_ code: UInt32) -> String? {
         guard let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
-              let raw = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else { return "?" }
+              let raw = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else { return nil }
         let layout = unsafeBitCast(raw, to: CFData.self)
         var dead: UInt32 = 0, length = 0
         var chars = [UniChar](repeating: 0, count: 4)
         let status = CFDataGetBytePtr(layout).withMemoryRebound(to: UCKeyboardLayout.self, capacity: 1) {
             UCKeyTranslate($0, UInt16(code), UInt16(kUCKeyActionDisplay), 0, UInt32(LMGetKbdType()), OptionBits(kUCKeyTranslateNoDeadKeysBit), &dead, 4, &length, &chars)
         }
-        return status == noErr && length > 0 ? String(utf16CodeUnits: chars, count: length).uppercased() : "?"
+        return status == noErr && length > 0 ? String(utf16CodeUnits: chars, count: length) : nil
     }
 }
 
