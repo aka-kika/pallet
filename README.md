@@ -68,7 +68,7 @@ Your palettes live in `~/Library/Application Support/Palette/`.
 
 ## Web version
 
-The same app runs as a web page at **[akakika.com/pallet](https://akakika.com/pallet/)**, with Kika's collection and a download button. Visitors' own palettes stay in their browser.
+A web version runs at **[akakika.com/pallet](https://akakika.com/pallet/)**, with Kika's collection and a download button. Visitors' own palettes stay in their browser. It reads images with a simpler method than the Mac app: the image's most common colors, without the Mac app's swatch, text and frame detection.
 
 ```sh
 pnpm install --frozen-lockfile
