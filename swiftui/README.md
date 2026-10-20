@@ -5,7 +5,7 @@ The Mac app. It replaced the Electron app (tag `v1.1.1`) on 2026-10-01 (installe
 ## Build and run
 
 - Xcode 27.2+, macOS 26+. The project uses Xcode's JSON project format (`Pallet.xcodeproj/project.xcproj`).
-- `xcodebuild -project swiftui/Pallet.xcodeproj -scheme Pallet build`
+- `xcodebuild -project swiftui/Pallet.xcodeproj -scheme Pallet build` (without Kika's Developer ID certificate, add `CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=` to sign ad hoc)
 - Try things on a copy of the collection: launch with `-PalletDataDirectory /some/folder`.
 - Checks: `swiftui/Tests/run.sh` builds the collection store and the global shortcuts with `Tests/main.swift` and runs them on throwaway folders (no app launch, no real collection).
 

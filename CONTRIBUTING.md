@@ -18,8 +18,10 @@ The maintainer is one person and replies when she can.
 The Mac app needs Xcode 27.2 or newer on macOS 26 or newer:
 
 ```
-xcodebuild -project swiftui/Pallet.xcodeproj -scheme Pallet build
+xcodebuild -project swiftui/Pallet.xcodeproj -scheme Pallet build CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=
 ```
+
+The project signs with the maintainer's Developer ID; the two settings at the end sign it ad hoc so it builds on your Mac.
 
 See **[docs/mac.md](docs/mac.md)**. The web version needs Node.js 24 or newer:
 

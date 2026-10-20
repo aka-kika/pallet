@@ -62,6 +62,8 @@ Build with Xcode 27.2 or newer on macOS 26 or newer. See **[docs/mac.md](docs/ma
 xcodebuild -project swiftui/Pallet.xcodeproj -scheme Pallet -configuration Release build
 ```
 
+Without Kika's Developer ID certificate, sign it ad hoc instead: add `CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=` to the command.
+
 Your palettes live in `~/Library/Application Support/Palette/`.
 
 ## Web version
