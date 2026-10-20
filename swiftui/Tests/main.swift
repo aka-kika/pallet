@@ -102,6 +102,20 @@ do {
     check(store.loadError != nil, "it is locked")
     check(waited > 1.5 && waited < 3.5, "after about 2 seconds (\(String(format: "%.1f", waited)) s)")
     check(copies(in: dir).count == 1, "one copy is kept")
+    store.load()
+    _ = PaletteStore(directory: dir)
+    check(copies(in: dir).count == 1, "a reload or a second launch adds no second copy")
+}
+
+print("No room for the copy")
+do {
+    let dir = folder()
+    try! "{ not json".write(to: dir.appendingPathComponent("palettes.json"), atomically: true, encoding: .utf8)
+    try! FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: dir.path)
+    let store = PaletteStore(directory: dir)
+    try! FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dir.path)
+    check(copies(in: dir).isEmpty, "the copy could not be written")
+    check(store.loadError?.contains("could not save a copy") == true, "the banner doesn't claim a copy")
 }
 
 print("Reserved global shortcuts")

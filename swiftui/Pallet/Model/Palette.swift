@@ -75,6 +75,8 @@ final class PaletteStore {
     @ObservationIgnored private var hiddenOnDisk: [String] = []
     /// Files that exist but could not be read. Pallet never writes these.
     private var locked: Set<String> = []
+    /// Locked files with a copy kept aside, for the banner.
+    @ObservationIgnored private var copied: Set<String> = []
     /// Modification date and size seen at the last load or write, so the
     /// watcher only reloads on real outside changes.
     private struct Stamp: Equatable { var date: Date; var size: Int }
@@ -184,18 +186,29 @@ final class PaletteStore {
         }.map(\.element)
     }
 
-    /// Keep a copy of a file that can't be read, and stop writing to it.
+    /// Keep a copy of a file that can't be read, and stop writing to it. A
+    /// copy with the same contents from an earlier load or launch is enough.
     private func lock(_ url: URL) {
         locked.insert(url.path)
+        guard let data = try? Data(contentsOf: url) else { copied.remove(url.path); return }
+        let prefix = url.deletingPathExtension().lastPathComponent + ".unreadable-"
+        let earlier = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        if earlier.contains(where: { $0.lastPathComponent.hasPrefix(prefix) && (try? Data(contentsOf: $0)) == data }) {
+            copied.insert(url.path)
+            return
+        }
         let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
         let copy = url.deletingPathExtension().appendingPathExtension("unreadable-\(stamp).json")
-        try? FileManager.default.copyItem(at: url, to: copy)
+        if (try? data.write(to: copy, options: .withoutOverwriting)) != nil { copied.insert(url.path) } else { copied.remove(url.path) }
     }
 
     private var lockedMessage: String? {
         guard !locked.isEmpty else { return nil }
         let names = locked.map { URL(fileURLWithPath: $0).lastPathComponent }.sorted().joined(separator: ", ")
-        return "Pallet could not read \(names), so it will not change it, and changes to it are not saved. A copy was saved next to it in ~/Library/Application Support/Palette."
+        let copy = locked.isSubset(of: copied)
+            ? "A copy was saved next to it in \(directory.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))."
+            : "Pallet could not save a copy of it, so keep one yourself before changing it."
+        return "Pallet could not read \(names), so it will not change it, and changes to it are not saved. " + copy
     }
 
     func isBuiltIn(_ id: String) -> Bool { builtins.contains { $0.id == id } }
