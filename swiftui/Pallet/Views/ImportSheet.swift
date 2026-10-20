@@ -181,7 +181,7 @@ struct ImportSheet: View {
         return try await Task.detached(priority: .userInitiated) { try await PaletteExtractor.extract(from: cg) }.value
     }
 
-    /// Settings > Add dropped images right away: no dialog.
+    /// Settings > Save new palettes right away: no dialog.
     static func quickPalette(from image: NSImage, fileName: String?) async throws -> Palette {
         let result = try await extract(image)
         let name = await Naming.name(for: result, fileName: fileName)

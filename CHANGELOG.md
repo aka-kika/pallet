@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+Cleanup (20 October). Nothing changes in the app.
+
+- Removed the old `themes/` folder (20 theme exports from before 2.0; git history keeps them), unused Swift code and dead CSS from the removed web settings.
+- `pnpm lint` passes again: it no longer reads the built site in `dist-site/`.
+- Docs: `package.json` says 2.0.4, the Swift code map lists `WhatsNew.swift`, THEME-RULES.md names the Swift port, the theme and SwiftUI handoff moved to `docs/archive/`.
+
 ## 2.0.4 (2026-10-20)
 
 Fixes from the 20 October code review. Nothing to move or set up.

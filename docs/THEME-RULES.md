@@ -1,6 +1,6 @@
 # Theme rules
 
-Which palette color goes where when a palette is picked. Code: `theme()` and `roles()` in `lib/palettes.ts`, CSS at the end of `app/globals.css`.
+Which palette color goes where when a palette is picked. Code: `theme()` and `roles()` in `lib/palettes.ts`, CSS at the end of `app/globals.css`; the Mac app's port is `swiftui/Pallet/Model/Theme.swift`.
 
 ## Two colors drive the app
 

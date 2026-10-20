@@ -3,7 +3,7 @@ import SwiftUI
 /// "What's new": a small sheet shown once, on the first launch after an update (Kika, 2026-10-17:
 /// "maybe we do this for all apps if I like it"). Self-contained on purpose, so another app can
 /// copy this one file: it needs only its release notes in the bundle, one Markdown file per
-/// version in a folder (here `release-notes/<version>.md`, copied from Docs/release-notes).
+/// version in a folder (here `release-notes/<version>.md`: docs/release-notes, bundled as a folder reference).
 enum WhatsNew {
     static let lastSeenKey = "whatsNewLastSeenVersion"
 

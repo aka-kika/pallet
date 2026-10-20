@@ -43,6 +43,7 @@ The Mac app. It replaced the Electron app (tag `v1.1.1`) on 2026-10-01 (installe
 - `Views/`: `ContentView.swift` (sidebar, canvas, toolbar), `Components.swift`, `ImportSheet.swift` (new palette, export), `SettingsView.swift`.
 - `MenuBar/`: status item and panel, Carbon hot keys, screen capture.
 - `Extraction/PaletteExtractor.swift`: Vision text reading and flat-region analysis.
+- `WhatsNew.swift`: the What's new sheet, shown once after an update and from the Help menu, from `docs/release-notes/<version>.md`.
 
 ## Keys
 
