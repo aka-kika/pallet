@@ -163,7 +163,12 @@ struct KeyboardSettings: View {
                 HStack {
                     Text("Click a shortcut, then press the new keys. Esc cancels.").font(.caption).foregroundStyle(.secondary)
                     Spacer()
-                    Button("Restore Defaults") { model.resetCombos() }.controlSize(.small)
+                    Button("Restore Defaults") {
+                        model.resetCombos()
+                        model.captureShortcut = .standard
+                        model.panelShortcut = .panelStandard
+                    }
+                    .controlSize(.small)
                 }
             }
             Section("Fixed keys") {
