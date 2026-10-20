@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+Fixes from the 20 October code review. Nothing to move or set up.
+
+- Pallet no longer says "Saved" when it could not save. While `palettes.json` (or `collections.json`) can't be read, a new or changed palette shows "Not saved" instead of "Palette added", and the menu bar panel shows the same warning as the window. Before, those palettes looked saved but were gone once the file was read again.
+- At launch, a collection file that a sync tool is still writing gets about 2 seconds to finish before Pallet treats it as unreadable, as 2.0.2 already did while the app was open.
+- The global shortcuts can no longer be set to keys every app needs (Command-Q, -W, -C, -V, -X, -A, -Z and the others the menu shortcuts already refuse). If one was set to such a key before, it goes back to the default.
+- A global shortcut removed in Settings stays removed after a relaunch.
+- New `swiftui/Tests/run.sh` checks these on throwaway folders.
+
 ## 2.0.3 (2026-10-14)
 
 Two more fixes from the code review. Nothing to move or set up.

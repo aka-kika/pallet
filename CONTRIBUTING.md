@@ -42,7 +42,7 @@ Imperative mood, present tense: "Add X", not "Added X". Keep the first line unde
 
 ## Submitting a pull request
 
-- Confirm the Mac app builds and `pnpm check:contrast` passes; for web changes, `pnpm build` too.
+- Confirm the Mac app builds, `swiftui/Tests/run.sh` and `pnpm check:contrast` pass; for web changes, `pnpm build` too.
 - Link the issue it closes.
 
 ## Conduct and licensing
