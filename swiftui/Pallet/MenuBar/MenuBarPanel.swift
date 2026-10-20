@@ -139,17 +139,21 @@ struct MenuBarPanel: View {
                         .font(.caption).foregroundStyle(.orange)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
-                    Label("Saved to your library", systemImage: "checkmark.circle").font(.caption).foregroundStyle(.secondary)
+                    HStack {
+                        Label("Saved to your library", systemImage: "checkmark.circle").font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        if actions.canUndo {
+                            Button { actions.undoManager.undo(); controller.done() } label: { Label("Undo", systemImage: "arrow.uturn.backward").font(.caption) }
+                                .buttonStyle(.borderless)
+                                .keyboardShortcut("z")
+                                .help(actions.undoTitle)
+                        }
+                    }
                 }
                 HStack {
                     Button("Copy CSS") { copy(saved) }
                     Button("Show in Pallet") { model.selectedID = saved.id; controller.openMain() }
                     Spacer()
-                    if actions.canUndo {
-                        Button { actions.undoManager.undo(); controller.done() } label: { Image(systemName: "arrow.uturn.backward") }
-                            .keyboardShortcut("z")
-                            .help(actions.undoTitle)
-                    }
                     Button("Done") { controller.done() }
                 }
             } else {

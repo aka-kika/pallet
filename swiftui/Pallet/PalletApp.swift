@@ -290,20 +290,26 @@ final class PaletteActions {
         undoManager.setActionName(name)
     }
 
+    // Changes to a palette start from the files as they are now (a sync may
+    // have changed it), so they don't put back an older copy.
+
     func setMain(_ i: Int) {
+        store.refreshIfChanged()
         guard var p = active, p.main != i else { return }
         p.main = i
         commit(p.id, to: p, "Change Main Color")
     }
 
     func rotate(_ n: Int) {
+        store.refreshIfChanged()
         guard var p = active else { return }
         p.main = (p.main + n + p.colors.count) % p.colors.count
         commit(p.id, to: p, "Change Main Color")
     }
 
     func toggleFavorite(_ p: Palette? = nil) {
-        guard var q = p ?? active else { return }
+        store.refreshIfChanged()
+        guard var q = p.map({ p in store.palettes.first { $0.id == p.id } }) ?? active else { return }
         q.favorite.toggle()
         commit(q.id, to: q, q.favorite ? "Favorite" : "Remove Favorite")
     }
@@ -373,61 +379,73 @@ final class PaletteActions {
 
     // MARK: Collections
 
-    /// Swap the collection list and register the way back. False when it
-    /// could not be saved.
+    /// Change the collection list and register the way back. `change` gets
+    /// the list as it is on disk now. A change refused because another app
+    /// changed collections.json meanwhile gets no undo step.
     @discardableResult
-    private func commitCollections(_ next: [PaletteCollection], _ name: String) -> Bool {
+    private func commitCollections(_ name: String, _ change: ([PaletteCollection]) -> [PaletteCollection]) -> PaletteStore.Save {
+        store.refreshIfChanged()
         let old = store.collections
-        let saved = store.setCollections(next)
+        let result = store.setCollections(change(old))
+        switch result {
+        case .stale: model.show("Not changed", detail: store.loadError); return result
+        case .notSaved: showNotSaved()
+        default: break
+        }
         undoManager.registerUndo(withTarget: store) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
-                self.commitCollections(old, name)
-                if let id = self.model.collectionID, !old.contains(where: { $0.id == id }) { self.model.sidebar = .library(.all) }
+                self.commitCollections(name) { _ in old }
+                if let id = self.model.collectionID, !self.store.collections.contains(where: { $0.id == id }) { self.model.sidebar = .library(.all) }
             }
         }
         undoManager.setActionName(name)
-        if !saved { showNotSaved() }
-        return saved
+        return result
     }
 
     @discardableResult
     func newCollection(named name: String = "New Collection", with ids: [String] = []) -> PaletteCollection {
-        let taken = Set(store.collections.map(\.name))
-        var title = name, n = 2
-        while taken.contains(title) { title = "\(name) \(n)"; n += 1 }
-        let c = PaletteCollection(id: PaletteCollection.newID(), name: title, paletteIDs: ids)
-        commitCollections(store.collections + [c], "New Collection")
-        return c
+        var made = PaletteCollection(id: PaletteCollection.newID(), name: name, paletteIDs: ids)
+        commitCollections("New Collection") { list in
+            let taken = Set(list.map(\.name))
+            var n = 2
+            while taken.contains(made.name) { made.name = "\(name) \(n)"; n += 1 }
+            return list + [made]
+        }
+        return made
     }
 
     func renameCollection(_ id: String, to name: String) {
         let clean = name.trimmingCharacters(in: .whitespaces)
         guard !clean.isEmpty else { return }
-        commitCollections(store.collections.map { $0.id == id ? PaletteCollection(id: id, name: String(clean.prefix(60)), paletteIDs: $0.paletteIDs) : $0 }, "Rename Collection")
+        commitCollections("Rename Collection") { $0.map { $0.id == id ? PaletteCollection(id: id, name: String(clean.prefix(60)), paletteIDs: $0.paletteIDs) : $0 } }
     }
 
     func deleteCollection(_ id: String) {
-        let saved = commitCollections(store.collections.filter { $0.id != id }, "Delete Collection")
-        if model.collectionID == id { model.sidebar = .library(.all) }
-        if saved { model.show("Collection deleted", detail: "The palettes stay in your library. Edit > Undo brings it back.") }
+        let result = commitCollections("Delete Collection") { $0.filter { $0.id != id } }
+        if model.collectionID == id && result != .stale { model.sidebar = .library(.all) }
+        if result == .saved { model.show("Collection deleted", detail: "The palettes stay in your library. Edit > Undo brings it back.") }
     }
 
     func addToCollection(_ paletteID: String, _ collectionID: String) {
+        store.refreshIfChanged()
         guard let c = store.collections.first(where: { $0.id == collectionID }), !c.paletteIDs.contains(paletteID) else { return }
-        if commitCollections(store.collections.map { $0.id == collectionID ? PaletteCollection(id: $0.id, name: $0.name, paletteIDs: $0.paletteIDs + [paletteID]) : $0 }, "Add to Collection") {
-            model.show("Added to \(c.name)")
-        }
+        let result = commitCollections("Add to Collection") { $0.map { $0.id == collectionID ? PaletteCollection(id: $0.id, name: $0.name, paletteIDs: $0.paletteIDs + [paletteID]) : $0 } }
+        if result == .saved { model.show("Added to \(c.name)") }
     }
 
     func removeFromCollection(_ paletteID: String, _ collectionID: String) {
-        commitCollections(store.collections.map { $0.id == collectionID ? PaletteCollection(id: $0.id, name: $0.name, paletteIDs: $0.paletteIDs.filter { $0 != paletteID }) : $0 }, "Remove from Collection")
+        commitCollections("Remove from Collection") { $0.map { $0.id == collectionID ? PaletteCollection(id: $0.id, name: $0.name, paletteIDs: $0.paletteIDs.filter { $0 != paletteID }) : $0 } }
     }
 
     func moveCollections(from source: IndexSet, to destination: Int) {
-        var list = store.collections
-        list.move(fromOffsets: source, toOffset: destination)
-        commitCollections(list, "Move Collection")
+        commitCollections("Move Collection") { list in
+            // Offsets from the sidebar; a list read again meanwhile may be shorter.
+            guard source.allSatisfy({ $0 < list.count }), destination <= list.count else { return list }
+            var list = list
+            list.move(fromOffsets: source, toOffset: destination)
+            return list
+        }
     }
 
     // MARK: Copy, export, import
@@ -475,6 +493,7 @@ final class PaletteActions {
             // Read what can be read; one odd entry doesn't spoil the file.
             let list = items.compactMap { decodeEntry(Palette.self, from: $0) }.filter(\.isValid)
             guard !list.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
+            store.refreshIfChanged()
             let before = store.snapshot()
             let (added, replaced, saved) = store.put(contentsOf: list)
             registerSnapshotUndo(before, "Import Collection")
@@ -493,16 +512,21 @@ final class PaletteActions {
         let after = store.snapshot()
         undoManager.registerUndo(withTarget: store) { [weak self] store in
             MainActor.assumeIsolated {
-                store.restore(before)
+                // Putting the whole collection back would drop a sync's change made since.
+                guard store.restore(before) != .stale else { self?.cantUndo(name); return }
                 self?.undoManager.registerUndo(withTarget: store) { [weak self] store in
                     MainActor.assumeIsolated {
-                        store.restore(after)
+                        guard store.restore(after) != .stale else { self?.cantUndo(name); return }
                         if let self { self.registerSnapshotUndo(before, name) }
                     }
                 }
             }
         }
         undoManager.setActionName(name)
+    }
+
+    private func cantUndo(_ name: String) {
+        model.show("Can't undo \(name)", detail: "Your collection was changed outside Pallet since then, and Pallet read it again.")
     }
 }
 
@@ -527,12 +551,11 @@ struct PalletCommands: Commands {
             }
             .disabled(WhatsNew.notes(for: WhatsNew.currentVersion) == nil)
         }
-        CommandGroup(after: .newItem) {
-            Button("Capture Screen Area") { MenuBarController.shared?.captureArea() }
-        }
+        // In the group that replaces New: a separate "after" group was dropped with it.
         CommandGroup(replacing: .newItem) {
             Button("New Palette from Image...") { model.importing = ImportRequest() }
                 .shortcut(model.combo(.newFromImage))
+            Button("Capture Screen Area") { MenuBarController.shared?.captureArea() }
             Button("New Collection") {
                 let c = actions.newCollection()
                 model.sidebar = .collection(c.id)

@@ -44,7 +44,7 @@ do {
     check(text(file) == "{ not json", "the locked file is left as it was")
     check(store.put(contentsOf: [palette("Batch")]).saved == false, "a batch put reports not saved")
     check(store.remove(store.palettes[0].id) == .notSaved, "remove reports not saved")
-    check(store.setCollections([PaletteCollection(id: "c1", name: "C", paletteIDs: [])]) == true, "collections.json is not locked, so collections save")
+    check(store.setCollections([PaletteCollection(id: "c1", name: "C", paletteIDs: [])]) == .saved, "collections.json is not locked, so collections save")
     check(store.loadError?.contains("not saved") == true, "the banner says changes are not saved")
 }
 
@@ -78,8 +78,17 @@ do {
     check(names.contains("From Sync") && names.contains("Mine") && names.contains("Next"), "and keeps the palette the sync added")
     let collections = dir.appendingPathComponent("collections.json")
     try! #"[{"id": "c-sync", "name": "Synced", "paletteIDs": []}]"#.write(to: collections, atomically: true, encoding: .utf8)
-    check(store.setCollections([PaletteCollection(id: "c-mine", name: "Mine", paletteIDs: [])]) == false, "a collection change made from an old list is refused")
+    check(store.setCollections([PaletteCollection(id: "c-mine", name: "Mine", paletteIDs: [])]) == .stale, "a collection change made from an old list is refused")
     check(store.collections.map(\.id) == ["c-sync"] && text(collections).contains("c-sync"), "the synced collections stay and show")
+
+    // An undo of a batch change (a snapshot) after a sync.
+    let before = store.snapshot()
+    store.put(palette("Imported"))
+    try! JSONSerialization.data(withJSONObject: (try! JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [Any])
+        + [try! JSONSerialization.jsonObject(with: JSONEncoder().encode(palette("Second Sync")))]).write(to: file)
+    check(store.restore(before) == .stale, "putting a snapshot back after a sync is refused")
+    check(text(file).contains("Second Sync") && store.palettes.contains { $0.name == "Second Sync" }, "and the sync's palette stays")
+    check(store.restore(store.snapshot()) == .saved, "with nothing changed outside, a snapshot goes back")
 }
 
 print("Only hidden.json locked")
@@ -95,7 +104,7 @@ do {
     let dir = folder()
     try! "{ not json".write(to: dir.appendingPathComponent("collections.json"), atomically: true, encoding: .utf8)
     let store = PaletteStore(directory: dir)
-    check(store.setCollections([PaletteCollection(id: "c1", name: "C", paletteIDs: [])]) == false, "setCollections reports not saved")
+    check(store.setCollections([PaletteCollection(id: "c1", name: "C", paletteIDs: [])]) == .notSaved, "setCollections reports not saved")
 }
 
 print("A half-written file at launch")

@@ -214,8 +214,10 @@ final class PaletteStore {
     func isBuiltIn(_ id: String) -> Bool { builtins.contains { $0.id == id } }
 
     /// The outcome of a change. Not saved: the change shows in the app, but a
-    /// file it needs is locked or could not be written, so it is gone after a reload.
-    enum Save { case saved, notSaved, invalid }
+    /// file it needs is locked or could not be written, so it is gone after a
+    /// reload. Stale: it was made from an older copy of a file another app
+    /// changed since, so the file was read again and nothing was written.
+    enum Save { case saved, notSaved, invalid, stale }
 
     /// Add or replace a palette. `index` puts a restored palette back where it was.
     @discardableResult
@@ -271,12 +273,15 @@ final class PaletteStore {
     /// The whole collection, for undoing a batch change in one step.
     struct Snapshot { fileprivate var palettes: [Palette], saved: [Palette], hidden: [String] }
     func snapshot() -> Snapshot { Snapshot(palettes: palettes, saved: saved, hidden: hidden) }
+    /// Put a snapshot back, unless the files changed outside Pallet since:
+    /// writing it then would drop that change.
     @discardableResult
-    func restore(_ s: Snapshot) -> Bool {
+    func restore(_ s: Snapshot) -> Save {
+        if refreshIfChanged() { return .stale }
         palettes = s.palettes
         saved = s.saved
         hidden = s.hidden
-        return write()
+        return write() ? .saved : .notSaved
     }
 
     /// Save palettes.json and hidden.json. False when the change didn't reach
@@ -288,12 +293,13 @@ final class PaletteStore {
                 let own = try merged(saved, into: rawPalettes, id: \.id)
                 try atomic(JSONSerialization.data(withJSONObject: own + foreign, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]), to: file)
                 savedOnDisk = saved
+                stamp(file)
             }
             if !locked.contains(hiddenFile.path) {
                 try atomic(JSONSerialization.data(withJSONObject: hidden + hiddenForeign, options: [.prettyPrinted, .withoutEscapingSlashes]), to: hiddenFile)
                 hiddenOnDisk = hidden
+                stamp(hiddenFile)
             }
-            stamp()
             loadError = lockedMessage
             return saved == savedOnDisk && hidden == hiddenOnDisk
         } catch {
@@ -302,29 +308,28 @@ final class PaletteStore {
         }
     }
 
-    /// Replace the whole list of collections and save it. False when it
-    /// could not be saved.
+    /// Replace the whole list of collections and save it.
     @discardableResult
-    func setCollections(_ list: [PaletteCollection]) -> Bool {
+    func setCollections(_ list: [PaletteCollection]) -> Save {
         // The list was made from the collections as Pallet knew them: if
         // another app changed the file since, show its version instead.
         let changed = current(collectionsFile) != stamps[collectionsFile.path]
         refreshIfChanged()
         if changed {
             loadError = (lockedMessage.map { $0 + " " } ?? "") + "collections.json was changed outside Pallet and has been read again. Try your change again."
-            return false
+            return .stale
         }
         collections = list
-        guard !locked.contains(collectionsFile.path) else { loadError = lockedMessage; return false }
+        guard !locked.contains(collectionsFile.path) else { loadError = lockedMessage; return .notSaved }
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let own = try merged(list, into: rawCollections, id: \.id)
             try atomic(JSONSerialization.data(withJSONObject: own + collectionsForeign, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]), to: collectionsFile)
-            stamp()
-            return true
+            stamp(collectionsFile)
+            return .saved
         } catch {
             loadError = "Collections not saved. Your change is still visible."
-            return false
+            return .notSaved
         }
     }
 
@@ -356,13 +361,18 @@ final class PaletteStore {
         stamps = Dictionary(uniqueKeysWithValues: files.compactMap { url in current(url).map { (url.path, $0) } })
     }
 
+    /// Only a file just written: another one may have changed and not been read yet.
+    private func stamp(_ url: URL) { stamps[url.path] = current(url) }
+
     /// Read the files again when something else changed them since Pallet
-    /// last read or wrote them, so a save never writes over a sync's edit.
+    /// last read or wrote them, so a change never writes over a sync's edit.
+    /// Call it before building a change from the current palettes. A sync
+    /// caught halfway gets the launch wait (about 2 s) to finish.
     @discardableResult
-    private func refreshIfChanged() -> Bool {
+    func refreshIfChanged() -> Bool {
         guard files.contains(where: { current($0) != stamps[$0.path] }) else { return false }
         pendingReload?.cancel()
-        load()
+        load(settle: true)
         return true
     }
 
