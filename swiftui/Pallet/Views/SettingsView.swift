@@ -211,6 +211,7 @@ struct AppShortcutRecorder: View {
 
     private func start() {
         recording = true
+        MenuBarController.shared?.setRecording(true)   // so Shift-Cmd-P is recorded, not a capture
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if event.keyCode == 53 { stop(); return nil }          // Esc
             if let new = KeyCombo(event: event),
@@ -225,6 +226,7 @@ struct AppShortcutRecorder: View {
     private func stop() {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
+        if recording { MenuBarController.shared?.setRecording(false) }
         recording = false
     }
 }
